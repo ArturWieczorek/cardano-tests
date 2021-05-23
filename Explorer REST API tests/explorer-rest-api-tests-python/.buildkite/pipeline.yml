@@ -1,0 +1,13 @@
+steps:
+
+  - label: 'Run pytest scripts'
+    commands:
+      - virtualenv --python=python3 bk_env
+      - source ./bk_env/bin/activate
+      - pip install -U pytest
+      - pip install requests
+      - pip install jsonschema
+      - pip install pytest-html
+      - pytest -v --html report.html --self-contained-html
+    artifact_paths:
+      - "**/*.html"

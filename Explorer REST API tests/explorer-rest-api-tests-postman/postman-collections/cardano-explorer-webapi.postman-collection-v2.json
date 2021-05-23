@@ -1,0 +1,1032 @@
+{
+	"info": {
+		"_postman_id": "cae62558-2d1e-4388-8a81-3fcec60403d6",
+		"name": "Cardano Explorer Web API Tests",
+		"description": "A list of automated tests covering the Cardano Explorer Web API. You can run these locally by replacing the {{BASE_URL}} with the Cardano Explorer URL - either a locally running version or one of our test/staging versions. ",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Init",
+			"item": [
+				{
+					"name": "set_arguments_for_requests_and_load_common_tests_and_schemas",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c6c54188-e1c3-4ed3-b7e7-9af282cbb7a9",
+								"exec": [
+									"// ------ Set variables: they will be used as arguments in requests URLs ------ //",
+									"",
+									"pm.test(\"Response status is OK and has a body in json format\", function () {",
+									"     pm.response.to.have.status(200); ",
+									"     pm.response.to.be.withBody;",
+									"     pm.response.to.be.json;",
+									"     ",
+									"     console.log(\"Set variables for BLK_HASH, ADDRESS that will be used as arguments for other requests\");",
+									"     const data = pm.response.json();",
+									"     pm.environment.set(\"BLK_HASH\", data.Right.ctsBlockHash);",
+									"     pm.environment.set(\"LATEST_EPOCH_NUMBER\",data.Right.ctsBlockEpoch);",
+									"     pm.environment.set(\"LATEST_SLOT_NUMBER\",data.Right.ctsBlockSlot);",
+									"     pm.environment.set(\"ADDRESS\", data.Right.ctsInputs[0].ctaAddress);",
+									"     ",
+									"     console.log(\"BLK_HASH is set to: \" + pm.variables.get(\"BLK_HASH\"));",
+									"     console.log(\"LATEST_EPOCH_NUMBER is set to: \" + pm.variables.get(\"LATEST_EPOCH_NUMBER\"));",
+									"     console.log(\"LATEST_SLOT is set to: \" + pm.variables.get(\"LATEST_SLOT_NUMBER\"));",
+									"     console.log(\"ADDRESS is set to: \" + pm.variables.get(\"ADDRESS\"));",
+									"});",
+									"",
+									"pm.environment.set(\"INVALID_EPOCH_NUMBER\", 9999999999999999);",
+									"pm.environment.set(\"INVALID_SLOT_NUMBER\", 23420);",
+									"",
+									"// ---------- Set common tests and load into variable ---------- //",
+									"",
+									"const commonTests = (schemaVariableName, statusCode = 200) => {",
+									"    pm.test(\"Response status is valid and it has a body in json format\", function () {",
+									"        pm.response.to.have.status(statusCode);",
+									"        pm.response.to.be.withBody;",
+									"        pm.response.to.be.json;",
+									"    });",
+									"    ",
+									"    pm.test(\"Schema is valid\", () => {",
+									"        pm.response.to.have.jsonSchema(pm.globals.get(schemaVariableName.toString()));",
+									"    });",
+									"};",
+									"",
+									"pm.environment.set(\"commonTests\", commonTests.toString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "c24cb12d-eed0-42a1-b10c-c532e32ba38d",
+								"exec": [
+									"// ------ Set variable: LAST_TX_ID  ------ //",
+									"",
+									"pm.sendRequest(pm.variables.get(\"BASE_URL\") + \"/\" + pm.variables.get(\"API_VERSION\") + \"/txs/last\", function(error, response) {",
+									" const data = response.json();",
+									" pm.environment.set(\"LAST_TX_ID\", data.Right[0].cteId);",
+									" console.log(\"Set variables for LAST_TX_ID that will be used as arguments for other requests\");",
+									" console.log(\"LAST_TX_ID is set to: \" + pm.variables.get(\"LAST_TX_ID\"));",
+									"});",
+									"",
+									"/* ------ This is a function for loading schema content from URL into variable ------",
+									"",
+									"I consider few approaches for testing schema: ",
+									"",
+									"1) load schemas for all request in one place - here",
+									"",
+									"- will create many global variables",
+									"+ One place when everything is done",
+									"",
+									"2) perform test that will download schema in each request separately and check it using:",
+									"",
+									"pm.sendRequest(\"https://api.myjson.com/bins/axyrk\", function (err, response) {",
+									"    pm.test(\"Validate schema\", () => {",
+									"        pm.response.to.have.jsonSchema(response.json());",
+									"    });",
+									"});",
+									"",
+									"- more lines of code - repetition of same block of code for all requests - creates clutter",
+									"",
+									"3) same as in #2 but extracted to common function - defined in one place and used for all tests",
+									"",
+									"+ combines all positives - HOWEVER after checking it - it turns out that in HTML reports only",
+									"the the second additional request for getting schema in test is being logged with its outputs ",
+									"and not the original one defined in Postman UI endpoint which is useless from reporting point ",
+									"of view",
+									"",
+									"",
+									"I am using #1 with common test funtion for each reqest:",
+									"",
+									"function attributeSchemaToGlobalVariable(url, name) {",
+									"    console.log(\"Schema URL: \" + url + \" for variable: \" + name);",
+									"    pm.sendRequest(url, function (err, res) {",
+									"    if (err) {",
+									"        console.log(err);",
+									"    } else {",
+									"        pm.globals.set(name.toString(), res.json());",
+									"    }",
+									" });",
+									"}",
+									"",
+									"attributeSchemaToGlobalVariable(\"https://api.myjson.com/bins/axyrk\", \"blocksPagesJsonSchema\");",
+									"",
+									"*/",
+									"",
+									"const attributeSchemaToGlobalVariable = fileName => {",
+									"    const reqUrl = pm.environment.get(\"SCHEMA_URL\") + fileName + \".json\"",
+									"    const schemaVariableName = fileName + \"_json_schema\";",
+									"    console.log(\"Schema URL: \" + reqUrl + \" for variable: \" + schemaVariableName);",
+									"    pm.sendRequest(reqUrl, function (err, res) {",
+									"    if (err) {",
+									"        console.log(err);",
+									"    } else {",
+									"        pm.globals.set(schemaVariableName.toString(), res.json());",
+									"    }",
+									" });",
+									"}",
+									"",
+									"attributeSchemaToGlobalVariable(\"blocks_pages\");",
+									"attributeSchemaToGlobalVariable(\"blocks_pages_total\");",
+									"attributeSchemaToGlobalVariable(\"blocks_summary_blockHash\");",
+									"attributeSchemaToGlobalVariable(\"blocks_txs_blockHash\");",
+									"attributeSchemaToGlobalVariable(\"txs_last\");",
+									"attributeSchemaToGlobalVariable(\"txs_summary_txId\");",
+									"attributeSchemaToGlobalVariable(\"stats_txs\");",
+									"attributeSchemaToGlobalVariable(\"addresses_summary_address\");",
+									"attributeSchemaToGlobalVariable(\"block_blockHash_address_address\");",
+									"attributeSchemaToGlobalVariable(\"epochs_epoch\");",
+									"attributeSchemaToGlobalVariable(\"epochs_epoch_slot\");",
+									"attributeSchemaToGlobalVariable(\"genesis_address\");",
+									"attributeSchemaToGlobalVariable(\"genesis_summary\");",
+									"attributeSchemaToGlobalVariable(\"genesis_address_pages_total\");",
+									"attributeSchemaToGlobalVariable(\"supply_ada\");",
+									"",
+									"// Common Error Schema",
+									"attributeSchemaToGlobalVariable(\"common_error\");",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/txs/summary/{{LAST_TX_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"txs",
+								"summary",
+								"{{LAST_TX_ID}}"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "blocks/pages",
+			"item": [
+				{
+					"name": "valid_blocks_pages_request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "55f0cd60-e29c-43d2-82d0-6d4cece29271",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"blocks_pages_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "2070087a-1508-4f34-8dea-a1846dc54952",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/x-www-form-urlencoded",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/blocks/pages",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"blocks",
+								"pages"
+							]
+						},
+						"description": "api/blocks/pages"
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "blocks/pages/total",
+			"item": [
+				{
+					"name": "valid_blocks_pages_total_request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "afcd3a2e-f16a-4357-b379-e1977f78c342",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"blocks_pages_total_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/blocks/pages/total",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"blocks",
+								"pages",
+								"total"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "blocks/summary/{blockHash}",
+			"item": [
+				{
+					"name": "valid_blockHash",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "26ca55d3-15b7-4a13-b36e-01983e00b75b",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"blocks_summary_blockHash_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "8c90ab76-9100-49a4-ac4d-f8698d7e33f0",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/blocks/summary/{{BLK_HASH}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"blocks",
+								"summary",
+								"{{BLK_HASH}}"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "blocks/txs/{blockHash}",
+			"item": [
+				{
+					"name": "valid_blockHash",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "04bae253-097b-409c-a8e0-8b069426fed6",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"blocks_txs_blockHash_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/blocks/txs/{{BLK_HASH}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"blocks",
+								"txs",
+								"{{BLK_HASH}}"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "txs/last",
+			"item": [
+				{
+					"name": "valid_txs_last_request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6079ab8d-6882-437a-9898-b22026de4593",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"txs_last_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/txs/last",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"txs",
+								"last"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "txs/summary/{txId}",
+			"item": [
+				{
+					"name": "valid_txId",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c40d06a2-21dc-43f0-a039-8e29248b3d52",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"txs_summary_txId_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/txs/summary/{{LAST_TX_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"txs",
+								"summary",
+								"{{LAST_TX_ID}}"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "stats/txs",
+			"item": [
+				{
+					"name": "valid_stats_txs_request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "e33153a5-dda6-46f6-ab01-b0fa7d85a2b7",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"stats_txs_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/stats/txs",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"stats",
+								"txs"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "addresses/summary/{address}",
+			"item": [
+				{
+					"name": "valid_address",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "db412e01-57e1-43d2-8b9e-805ecd3553d5",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"addresses_summary_address_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/addresses/summary/{{ADDRESS}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"addresses",
+								"summary",
+								"{{ADDRESS}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "invalid_address",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "db412e01-57e1-43d2-8b9e-805ecd3553d5",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"common_error_json_schema\", 200);",
+									"",
+									"pm.test(\"Error message is correct\", function () {",
+									"    const body = pm.response.json();",
+									"    pm.expect(body.Left).to.eql(\"Unable to decode address \" + pm.variables.get(\"ADDRESS\") + \"+1.\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/addresses/summary/{{ADDRESS}}+1",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"addresses",
+								"summary",
+								"{{ADDRESS}}+1"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "block/{blockHash}/address/{address}",
+			"item": [
+				{
+					"name": "valid_blockHash_valid_address",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a0bdb0b4-8c52-4f91-8cbc-8b032def52fc",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"block_blockHash_address_address_json_schema\");",
+									"",
+									"pm.test(\"Balance is correct\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    const balance = parseInt(jsonData.Right.caBalance.getCoin);",
+									"    const totalInput = parseInt(jsonData.Right.caTotalInput.getCoin);",
+									"    const totalOutput = parseInt(jsonData.Right.caTotalOutput.getCoin);",
+									"    ",
+									"    pm.expect(balance).to.eql(totalInput - totalOutput);",
+									"});",
+									"",
+									"",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/block/{{BLK_HASH}}/address/{{ADDRESS}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"block",
+								"{{BLK_HASH}}",
+								"address",
+								"{{ADDRESS}}"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "epochs/{epoch}",
+			"item": [
+				{
+					"name": "valid_epoch",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "e6606b50-0155-49a9-a7c6-cc3d5bff9119",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"epochs_epoch_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/epochs/{{LATEST_EPOCH_NUMBER}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"epochs",
+								"{{LATEST_EPOCH_NUMBER}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "invalid_epoch",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a6431cfe-74df-4f8a-8588-68743bd76719",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"common_error_json_schema\", 200);",
+									"",
+									"pm.test(\"Error message is correct\", function () {",
+									"    const body = pm.response.json();",
+									"    pm.expect(body.Left).to.contain(\"No blocks found for epoch #\" + pm.variables.get(\"INVALID_EPOCH_NUMBER\"));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "c86c3779-f618-44e2-84a8-9bc65b67c55a",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/epochs/{{INVALID_EPOCH_NUMBER}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"epochs",
+								"{{INVALID_EPOCH_NUMBER}}"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "epochs/{epoch}/{slot}",
+			"item": [
+				{
+					"name": "valid_epoch_valid_slot",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "532c02e8-9d90-494f-9d22-ed91adf899a3",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"epochs_epoch_slot_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/epochs/{{LATEST_EPOCH_NUMBER}}/{{LATEST_SLOT_NUMBER}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"epochs",
+								"{{LATEST_EPOCH_NUMBER}}",
+								"{{LATEST_SLOT_NUMBER}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "valid_epoch_invalid_slot",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "532c02e8-9d90-494f-9d22-ed91adf899a3",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"common_error_json_schema\", 200);",
+									"",
+									"pm.test('Error message is correct.', function () {",
+									"    const body = pm.response.json();",
+									"    pm.expect(body.Left).to.equal(\"Invalid slot number\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/epochs/{{LATEST_EPOCH_NUMBER}}/{{INVALID_SLOT_NUMBER}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"epochs",
+								"{{LATEST_EPOCH_NUMBER}}",
+								"{{INVALID_SLOT_NUMBER}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "invalid_epoch_valid_slot",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "532c02e8-9d90-494f-9d22-ed91adf899a3",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"common_error_json_schema\", 200);",
+									"",
+									"pm.test('Error message is correct.', function () {",
+									"    const body = pm.response.json();",
+									"    pm.expect(body.Left).to.equal(\"Not found\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "3608582e-b427-4c96-a717-c8f196d49673",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/epochs/{{INVALID_EPOCH_NUMBER}}/{{LATEST_SLOT_NUMBER}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"epochs",
+								"{{INVALID_EPOCH_NUMBER}}",
+								"{{LATEST_SLOT_NUMBER}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "invalid_epoch_invalid_slot",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "532c02e8-9d90-494f-9d22-ed91adf899a3",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"common_error_json_schema\", 200);",
+									"",
+									"pm.test('Error message is correct.', function () {",
+									"    const body = pm.response.json();",
+									"    pm.expect(body.Left).to.equal(\"Invalid slot number\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "b932c917-0544-4c7b-9815-5a7b21243598",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/epochs/{{INVALID_EPOCH_NUMBER}}/{{INVALID_SLOT_NUMBER}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"epochs",
+								"{{INVALID_EPOCH_NUMBER}}",
+								"{{INVALID_SLOT_NUMBER}}"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "genesis/address",
+			"item": [
+				{
+					"name": "valid_genesis_address_request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "06bd8753-db06-41b8-85ce-8bad110c011f",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"genesis_address_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/genesis/address",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"genesis",
+								"address"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "genesis/summary",
+			"item": [
+				{
+					"name": "valid_genesis_summary_request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c016fab5-8ec1-4ae7-b7cb-119a92c5aa75",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"genesis_summary_json_schema\");",
+									"",
+									"pm.test(\"Balance is correct\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    const totalAmount = parseInt(jsonData.Right.cgsNumTotal);",
+									"    const redeemed = parseInt(jsonData.Right.cgsNumRedeemed);",
+									"    const notRedeemed = parseInt(jsonData.Right.cgsNumNotRedeemed);",
+									"    ",
+									"    pm.expect(totalAmount).to.eql(redeemed + notRedeemed);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/genesis/summary",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"genesis",
+								"summary"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "genesis/address/pages/total",
+			"item": [
+				{
+					"name": "valid_genesis_pages_total_request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "62ca9c64-efc5-4c43-97f9-83472e7826e3",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"genesis_address_pages_total_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/genesis/address/pages/total",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"genesis",
+								"address",
+								"pages",
+								"total"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "supply/ada",
+			"item": [
+				{
+					"name": "valid_supply_ada_request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a58e7ded-65f3-416c-980a-0047f8dd867d",
+								"exec": [
+									"eval(pm.environment.get(\"commonTests\"))(\"supply_ada_json_schema\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/{{API_VERSION}}/supply/ada",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"{{API_VERSION}}",
+								"supply",
+								"ada"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"id": "ebcbf019-3a84-446b-b45d-16442a7e200e",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"id": "3015619d-3701-478c-b340-779d898c24ee",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"protocolProfileBehavior": {}
+}

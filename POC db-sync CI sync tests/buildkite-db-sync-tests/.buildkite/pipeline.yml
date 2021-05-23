@@ -1,0 +1,14 @@
+steps:
+  - label: 'Db sync tests on shelley_qa'
+    command: "./start_node_and_db_sync.sh -e shelley_qa"
+    timeout_in_minutes: 90
+    agents:
+      system: x86_64-linux
+      queue: benchmark
+
+  - label: 'Db sync tests on testnet'
+    command: "./start_node_and_db_sync.sh -e testnet"
+    timeout_in_minutes: 500
+    agents:
+      system: x86_64-linux
+      queue: benchmark

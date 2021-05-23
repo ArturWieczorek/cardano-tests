@@ -1,0 +1,11 @@
+steps:
+  - label: "Newman Tests"
+    command: newman run https://www.getpostman.com/collections/133e09b49487e0e9ac9d --env-var BASE_URL=${BASE_URL:-https://explorer.cardano-testnet.iohkdev.io} --env-var API_VERSION=api-new --env-var SCHEMA_URL=https://raw.githubusercontent.com/ArturWieczorek/explorer-json-schemas/master/ --color off --reporters cli,htmlextra --reporter-html-export report.html
+    artifact_paths: "newman/**/*"
+    plugins:
+      - docker#v3.5.0:
+          image: "arturwieczorek/newman:latest"
+          always-pull: true
+notify:
+  - slack: "#tmp"
+    if: build.state != "passed"
