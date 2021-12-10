@@ -1,0 +1,5 @@
+export BOOTSTRAP_DIR=/media/artur/Backup/alonzo_purple_bootstrap
+export CLUSTER_ERA=alonzo
+export TX_ERA=alonzo
+export CARDANO_NODE_SOCKET_PATH=/media/artur/Backup/db-sync-purple-1.0/cardano-node/state-cluster0/relay1.socket
+export TMPDIR=/media/artur/Backup/tmp/alonzo_purple
