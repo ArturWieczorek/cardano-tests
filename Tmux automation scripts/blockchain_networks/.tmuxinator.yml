@@ -1,0 +1,74 @@
+# ./.tmuxinator.yml
+
+name: build_all
+root: /home/artur/Playground/blockchain_networks/Base_Projects
+
+# Optional tmux socket
+# socket_name: foo
+
+# Note that the pre and post options have been deprecated and will be replaced by
+# project hooks.
+
+# Project hooks
+# Runs on project start, always
+# on_project_start: command
+# Run on project start, the first time
+# on_project_first_start: command
+# Run on project start, after the first time
+# on_project_restart: command
+# Run on project exit ( detaching from tmux session )
+# on_project_exit: command
+# Run on project stop
+# on_project_stop: command
+
+# Runs in each window and pane before window/pane specific commands. Useful for setting up interpreter versions.
+# pre_window: rbenv shell 2.0.0-p247
+
+# Pass command line options to tmux. Useful for specifying a different tmux.conf.
+# tmux_options: -f ~/.tmux.mac.conf
+
+# Change the command to call tmux.  This can be used by derivatives/wrappers like byobu.
+# tmux_command: byobu
+
+# Specifies (by name or index) which window will be selected on project startup. If not set, the first window is used.
+# startup_window: editor
+
+# Specifies (by index) which pane of the specified window will be selected on project startup. If not set, the first pane is used.
+# startup_pane: 1
+
+# Controls whether the tmux session should be attached to automatically. Defaults to true.
+# attach: false
+
+
+windows:
+    - editor:
+            layout: tiled
+            panes:
+              - node:
+                - rm -fr cardano-node
+                - git clone git@github.com:input-output-hk/cardano-node.git
+                - cd cardano-node
+                - git fetch --all --tags
+                - git checkout tags/1.31.0
+                - nix-build -A scripts.mainnet.node -o mainnet-node-local
+                - nix-build -A scripts.testnet.node -o testnet-node-local
+                - nix-build -A scripts.staging.node -o staging-node-local
+                - nix-build -A scripts.shelley_qa.node -o shelley_qa-node-local
+                - cabal build all
+                - cp $(find . -name cardano-node -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-node/_cardano-node
+                - cp $(find . -name cardano-cli -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-node/_cardano-cli
+
+
+              - db-sync and smash:
+                - rm -fr cardano-db-sync
+                - git clone git@github.com:input-output-hk/cardano-db-sync.git
+                - cd cardano-db-sync
+                - git fetch --all --tags
+                - git checkout tags/12.0.0
+                - nix-build -A cardano-db-sync -o db-sync-node
+                - cabal build all      
+                - cp $(find . -name cardano-db-sync -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-db-sync  
+                - cp $(find . -name cardano-db-tool -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-db-tool  
+                - cabal build cardano-smash-server
+                - cp $(find . -name cardano-smash-server -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-smash-server
+                - echo "artur, password" > admins.txt

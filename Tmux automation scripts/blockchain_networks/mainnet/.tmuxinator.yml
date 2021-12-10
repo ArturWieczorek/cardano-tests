@@ -1,0 +1,89 @@
+# ./.tmuxinator.yml
+
+name: mainnet
+root: /home/artur/Playground/blockchain_networks/Base_Projects
+
+# Optional tmux socket
+# socket_name: foo
+
+# Note that the pre and post options have been deprecated and will be replaced by
+# project hooks.
+
+# Project hooks
+# Runs on project start, always
+# on_project_start: command
+# Run on project start, the first time
+# on_project_first_start: command
+# Run on project start, after the first time
+# on_project_restart: command
+# Run on project exit ( detaching from tmux session )
+# on_project_exit: command
+# Run on project stop
+# on_project_stop: command
+
+# Runs in each window and pane before window/pane specific commands. Useful for setting up interpreter versions.
+# pre_window: rbenv shell 2.0.0-p247
+
+# Pass command line options to tmux. Useful for specifying a different tmux.conf.
+# tmux_options: -f ~/.tmux.mac.conf
+
+# Change the command to call tmux.  This can be used by derivatives/wrappers like byobu.
+# tmux_command: byobu
+
+# Specifies (by name or index) which window will be selected on project startup. If not set, the first window is used.
+# startup_window: editor
+
+# Specifies (by index) which pane of the specified window will be selected on project startup. If not set, the first pane is used.
+# startup_pane: 1
+
+# Controls whether the tmux session should be attached to automatically. Defaults to true.
+# attach: false
+
+
+windows:
+    - editor:
+            layout: tiled
+            panes:
+              - node:
+                - if [ -d "cardano-node" ]; then echo "Repository already exists."; else git clone git@github.com:input-output-hk/cardano-node.git; fi 
+                - cd cardano-node
+                - git checkout master
+                - git pull origin master
+                - git fetch --all --tags
+                - git checkout tags/1.31.0
+                - nix-build -A scripts.mainnet.node -o mainnet-node-local
+                - mainnet-node-local/bin/cardano-node-mainnet
+
+
+              - db-sync:
+                - if [ -d "cardano-db-sync" ]; then echo "Repository already exists."; else git clone git@github.com:input-output-hk/cardano-db-sync.git; fi 
+                - cd cardano-db-sync
+                - git checkout master
+                - git pull origin master
+                - git fetch --all --tags
+                - git checkout tags/12.0.0
+                - nix-build -A cardano-db-sync -o db-sync-node
+                #- psql -c "DROP DATABASE cexplorer"
+                #- PGPASSFILE=config/pgpass-mainnet scripts/postgresql-setup.sh --createdb
+                - PGPASSFILE=config/pgpass-mainnet db-sync-node/bin/cardano-db-sync --config config/mainnet-config.yaml --socket-path ../cardano-node/state-node-mainnet/node.socket --schema-dir schema/ --state-dir ledger-state/mainnet
+
+
+              - smash:
+                - cd cardano-db-sync
+                - cabal build cardano-smash-server
+                - cp $(find . -name cardano-smash-server -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-smash-server
+                - echo "artur, password" > admins.txt
+                - PGPASSFILE=config/pgpass-mainnet ./_cardano-smash-server --config config/mainnet-config.yaml --port 3100 --admins admins.txt
+
+
+              - node_playground:
+                - sleep 20
+                - export CARDANO_NODE_SOCKET_PATH=/home/artur/Playground/blockchain_networks/Base_Projects/cardano-node/state-node-mainnet/node.socket
+                - cardano-cli query tip --mainnet
+        
+        
+              - smash_playground:
+                - sleep 20
+                - cat /home/artur/Playground/blockchain_networks/mainnet/mainnet.txt
+                - echo "Checking SMASH service status:"    
+                - curl http://localhost:3100/api/v1/status

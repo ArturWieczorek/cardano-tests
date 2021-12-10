@@ -1,0 +1,17 @@
+Official SMASH service URL for testnet ==> https://smash.cardano-testnet.iohkdev.io
+
+IOG1 Pool test data for testnet:
+pool_hash = 48f2c367cfe81cac6687c3f7c26613edfe73cd329402aa5cf493bb61
+pool_view = pool1frevxe70aqw2ce58c0muyesnahl88nfjjsp25h85jwakzgd2g2l
+pool_metadata = 4b2221a0ac0b0197308323080ba97e3e453f8625393d30f96eebe0fca4cb7334
+pool_with_errors = be329bbf0ee0f53d19f3b2808611779a49c7df43f330a8035eb9f853
+unregistered_pools_example = 002c501d063cf552144e58ea9a85c8d156b3d7c7a498e52a50cf546c
+
+
+Fetch: curl --verbose --header "Content-Type: application/json" --request GET http://localhost:3100/api/v1/metadata/a5a3ce765f5162548181a44d1ff8c8f8c50018cca59acc0b70a85a41/d98a03b8aa962d80511d62566df2af415afd9bd03d53cbb0ad457a53d3491f74
+Delist: curl --verbose -u username:password --header "Content-Type: application/json" --request PATCH --data '{"poolId":"a5a3ce765f5162548181a44d1ff8c8f8c50018cca59acc0b70a85a41"}' http://localhost:3100/api/v1/delist
+Whitelist: curl -u username:password -X PATCH -v http://localhost:3100/api/v1/enlist -H 'content-type: application/json' -d '{"poolId": "81e84003f3d2f65315b479dc3cdbe4aa8c8595a3d76818e284b29f27"}'
+Reserve ticker: curl --verbose -u username:password --header "Content-Type: application/json" --request POST --data '{"poolId":"1c443cd9c14c85e6b541be0c2bd98c9f11be25185a15636c33c4cd8f"}' http://localhost:3100/api/v1/tickers/ART
+Errors: curl http://localhost:3100/api/v1/errors/be329bbf0ee0f53d19f3b2808611779a49c7df43f330a8035eb9f853?fromDate=13.10.2020
+Retired pools: curl --header "Content-Type: application/json" http://localhost:3100/api/v1/retired | jq .
+Policies: curl -u username:password --verbose --header "Content-Type: application/json" --request POST --data '{"smashURL": "https://smash.cardano-mainnet.iohk.io"}' http://localhost:3100/api/v1/policies | jq .

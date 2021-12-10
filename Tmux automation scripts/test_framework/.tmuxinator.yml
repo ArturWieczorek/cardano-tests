@@ -1,0 +1,74 @@
+# ./.tmuxinator.yml
+
+name: test_framework
+root: /home/artur/Playground/test_framework/
+
+# Optional tmux socket
+# socket_name: foo
+
+# Note that the pre and post options have been deprecated and will be replaced by
+# project hooks.
+
+# Project hooks
+# Runs on project start, always
+# on_project_start: command
+# Run on project start, the first time
+# on_project_first_start: command
+# Run on project start, after the first time
+# on_project_restart: command
+# Run on project exit ( detaching from tmux session )
+on_project_exit: home/artur/Playground/test_framework/cardano-node-tests/scripts/destination/dir/stop-cluster-hfc
+# Run on project stop
+on_project_stop: home/artur/Playground/test_framework/cardano-node-tests/scripts/destination/dir/stop-cluster-hfc
+
+# Runs in each window and pane before window/pane specific commands. Useful for setting up interpreter versions.
+# pre_window: rbenv shell 2.0.0-p247
+
+# Pass command line options to tmux. Useful for specifying a different tmux.conf.
+# tmux_options: -f ~/.tmux.mac.conf
+
+# Change the command to call tmux.  This can be used by derivatives/wrappers like byobu.
+# tmux_command: byobu
+
+# Specifies (by name or index) which window will be selected on project startup. If not set, the first window is used.
+# startup_window: editor
+
+# Specifies (by index) which pane of the specified window will be selected on project startup. If not set, the first pane is used.
+# startup_pane: 1
+
+# Controls whether the tmux session should be attached to automatically. Defaults to true.
+# attach: false
+
+windows:
+    - editor:
+            layout: tiled
+            panes:
+              - node:
+                - if [ -d "cardano-node-tests" ]; then echo "Repository already exists."; else git clone git@github.com:input-output-hk/cardano-node-tests.git; fi
+                - cd cardano-node-tests
+                - git checkout master
+                - git pull
+                - python3 -m venv .env
+                - . .env/bin/activate
+                - make install
+                - cd ..
+                - if [ -d "cardano-node" ]; then echo "Repository already exists."; else git clone git@github.com:input-output-hk/cardano-node.git; fi
+                - cd cardano-node
+                - git fetch --all --tags
+                - git checkout tags/1.31.0
+                - nix-shell -A devops
+                - cd ../cardano-node-tests
+                - rm -rf /scripts/destination
+                - . .env/bin/activate
+                - export PGHOST=localhost PGPORT=5434 PGUSER=postgres_dbsync
+                - ./scripts/postgres-start.sh "/home/artur/Playground/test_framework/postgres-qa" -k
+                - prepare-cluster-scripts -d scripts/destination/dir -s cardano_node_tests/cluster_scripts/alonzo
+                - export CARDANO_NODE_SOCKET_PATH=/home/artur/Projects/cardano-node/state-cluster0/bft1.socket
+                - export DEV_CLUSTER_RUNNING=1
+                - export DBSYNC_REPO="/home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync"
+                - scripts/destination/dir/start-cluster-hfc
+
+              - db-sync and smash:
+                - cd cardano-node-tests
+                - echo  "psql -h /home/artur/Playground/test_framework/postgres-qa -U postgres_dbsync -e dbsync0 -p 5434"
+                - echo "Run pytest cardano_node_tests/tests/test_transactions.py -k 'test_transfer_funds'"
