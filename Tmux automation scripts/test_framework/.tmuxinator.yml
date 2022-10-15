@@ -55,18 +55,23 @@ windows:
                 - if [ -d "cardano-node" ]; then echo "Repository already exists."; else git clone git@github.com:input-output-hk/cardano-node.git; fi
                 - cd cardano-node
                 - git fetch --all --tags
-                - git checkout tags/1.31.0
+                - git checkout tags/1.35.3-configs
                 - nix-shell -A devops
                 - cd ../cardano-node-tests
                 - rm -rf /scripts/destination
                 - . .env/bin/activate
                 - export PGHOST=localhost PGPORT=5434 PGUSER=postgres_dbsync
-                - ./scripts/postgres-start.sh "/home/artur/Playground/test_framework/postgres-qa" -k
-                - prepare-cluster-scripts -d scripts/destination/dir -s cardano_node_tests/cluster_scripts/alonzo
-                - export CARDANO_NODE_SOCKET_PATH=/home/artur/Projects/cardano-node/state-cluster0/bft1.socket
+                - export CARDANO_NODE_SOCKET_PATH=/home/artur/Playground/test_framework/cardano-node/state-cluster0/bft1.socket
                 - export DEV_CLUSTER_RUNNING=1
+                - ./scripts/postgres-start.sh "/home/artur/Playground/test_framework/postgres-qa" -k
+                - prepare-cluster-scripts -d scripts/destination/dir -s cardano_node_tests/cluster_scripts/babbage
                 - export DBSYNC_REPO="/home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync"
+                # For SMASH - available on a separate branch
+                #- export PGPASSFILE="/home/artur/Playground/test_framework/cardano-node/state-cluster0/pgpass"
+                #- export USE_SMASH=1
                 - scripts/destination/dir/start-cluster-hfc
+                - export PYTHONPATH="$(echo $VIRTUAL_ENV/lib/python3*/site-packages)":$PYTHONPATH
+                - ./check_env.sh
 
               - db-sync and smash:
                 - cd cardano-node-tests

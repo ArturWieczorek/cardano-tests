@@ -1,0 +1,17 @@
+NO Official SMASH service URL for preview
+
+IOG1 Pool test data for preview:
+pool_hash = 
+pool_view = 
+pool_metadata = 
+pool_with_errors = 
+unregistered_pools_example = 
+
+
+Fetch: curl --verbose --header "Content-Type: application/json" --request GET http://localhost:3100/api/v1/metadata/X/Y
+Delist: curl --verbose -u username:password --header "Content-Type: application/json" --request PATCH --data '{"poolId":"X"}' http://localhost:3100/api/v1/delist
+Whitelist: curl -u username:password -X PATCH -v http://localhost:3100/api/v1/enlist -H 'content-type: application/json' -d '{"poolId": "X"}'
+Reserve ticker: curl --verbose -u username:password --header "Content-Type: application/json" --request POST --data '{"poolId":"X"}' http://localhost:3100/api/v1/tickers/ART
+Errors: curl http://localhost:3100/api/v1/errors/X?fromDate=13.10.2020
+Retired pools: curl --header "Content-Type: application/json" http://localhost:3100/api/v1/retired | jq .
+Policies: curl -u username:password --verbose --header "Content-Type: application/json" --request POST --data '{"smashURL": "https://smash.cardano-mainnet.iohk.io"}' http://localhost:3100/api/v1/policies | jq .

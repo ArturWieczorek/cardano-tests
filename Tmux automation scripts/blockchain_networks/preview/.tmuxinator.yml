@@ -1,6 +1,6 @@
 # ./.tmuxinator.yml
 
-name: mainnet
+name: preview
 root: /home/artur/Playground/blockchain_networks/Base_Projects
 
 # Optional tmux socket
@@ -50,10 +50,9 @@ windows:
                 #- git checkout master
                 #- git pull origin master
                 #- git fetch --all --tags
-                #- git checkout tags/1.35.3-configs
-                #- nix build .#mainnet/node -o mainnet-node-local
-                - if [ -d "mainnet" ]; then echo "Mainnet Config folder already exists."; else cp -R /home/artur/Playground/blockchain_networks/mainnet/mainnet . ; fi
-                - ./_cardano-node run --topology mainnet/topology.json --database-path mainnet/db --socket-path mainnet/node.socket --config mainnet/config.json
+                #- git checkout tags/1.35.3
+                - if [ -d "preview" ]; then echo "Preview Config folder already exists."; else cp -R /home/artur/Playground/blockchain_networks/preview/preview . ; fi
+                - ./_cardano-node run --topology preview/topology.json --database-path preview/db --socket-path preview/node.socket --config preview/config.json
 
 
               - db-sync:
@@ -64,9 +63,9 @@ windows:
                 #- git fetch --all --tags
                 #- git checkout tags/13.0.5
                 #- nix-build -A cardano-db-sync -o db-sync-node
-                #- psql -c "DROP DATABASE mainnet_playground"
-                #- PGPASSFILE=config/pgpass-mainnet scripts/postgresql-setup.sh --createdb
-                - PGPASSFILE=config/pgpass-mainnet db-sync-node/bin/cardano-db-sync --config config/mainnet-config.yaml --socket-path ../cardano-node/mainnet/node.socket --schema-dir schema/ --state-dir ledger-state/mainnet
+                #- psql -c "DROP DATABASE preview_playground"
+                #- PGPASSFILE=config/pgpass-preview scripts/postgresql-setup.sh --createdb
+                - PGPASSFILE=config/pgpass-preview db-sync-node/bin/cardano-db-sync --config config/preview-config.yaml --socket-path ../cardano-node/preview/node.socket --schema-dir schema/ --state-dir ledger-state/preview
 
 
               - smash:
@@ -74,17 +73,17 @@ windows:
                 #- cabal build cardano-smash-server
                 #- cp $(find . -name cardano-smash-server -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-smash-server
                 #- echo "artur, password" > admins.txt
-                - PGPASSFILE=config/pgpass-mainnet ./_cardano-smash-server --config config/mainnet-config.yaml --port 3100 --admins admins.txt
+                - PGPASSFILE=config/pgpass-preview ./_cardano-smash-server --config config/preview-config.yaml --port 3100 --admins admins.txt
 
 
               - node_playground:
                 - sleep 20
-                - export CARDANO_NODE_SOCKET_PATH=/home/artur/Playground/blockchain_networks/Base_Projects/cardano-node/mainnet/node.socket
-                - cardano-cli query tip --mainnet
+                - export CARDANO_NODE_SOCKET_PATH=/home/artur/Playground/blockchain_networks/Base_Projects/cardano-node/preview/node.socket
+                - cardano-cli query tip --testnet-magic 2
 
 
               - smash_playground:
                 - sleep 20
-                - cat /home/artur/Playground/blockchain_networks/mainnet/mainnet.txt
+                - cat /home/artur/Playground/blockchain_networks/preview/preview.txt
                 - echo "Checking SMASH service status:"
                 - curl http://localhost:3100/api/v1/status

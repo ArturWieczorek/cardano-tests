@@ -49,11 +49,9 @@ windows:
                 - git clone git@github.com:input-output-hk/cardano-node.git
                 - cd cardano-node
                 - git fetch --all --tags
-                - git checkout tags/1.31.0
-                - nix-build -A scripts.mainnet.node -o mainnet-node-local
-                - nix-build -A scripts.testnet.node -o testnet-node-local
-                - nix-build -A scripts.staging.node -o staging-node-local
-                - nix-build -A scripts.shelley_qa.node -o shelley_qa-node-local
+                - git checkout tags/1.35.3-configs
+                - nix build .#mainnet/node -o mainnet-node-local
+                #- so far there are no nix scripts for building node for other networks than mainnet
                 - cabal build all
                 - cp $(find . -name cardano-node -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-node/_cardano-node
                 - cp $(find . -name cardano-cli -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-node/_cardano-cli
@@ -64,11 +62,11 @@ windows:
                 - git clone git@github.com:input-output-hk/cardano-db-sync.git
                 - cd cardano-db-sync
                 - git fetch --all --tags
-                - git checkout tags/12.0.0
+                - git checkout tags/13.0.5
                 - nix-build -A cardano-db-sync -o db-sync-node
-                - cabal build all      
-                - cp $(find . -name cardano-db-sync -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-db-sync  
-                - cp $(find . -name cardano-db-tool -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-db-tool  
+                - cabal build all
+                - cp $(find . -name cardano-db-sync -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-db-sync
+                - cp $(find . -name cardano-db-tool -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-db-tool
                 - cabal build cardano-smash-server
                 - cp $(find . -name cardano-smash-server -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-smash-server
                 - echo "artur, password" > admins.txt

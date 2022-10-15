@@ -45,45 +45,45 @@ windows:
             layout: tiled
             panes:
               - node:
-                - if [ -d "cardano-node" ]; then echo "Repository already exists."; else git clone git@github.com:input-output-hk/cardano-node.git; fi 
+                - if [ -d "cardano-node" ]; then echo "Repository already exists."; else git clone https://github.com/input-output-hk/cardano-node; fi
                 - cd cardano-node
-                - git checkout master
-                - git pull origin master
-                - git fetch --all --tags
-                - git checkout tags/1.31.0
-                - nix-build -A scripts.shelley_qa.node -o shelley_qa-node-local
-                - shelley_qa-node-local/bin/cardano-node-shelley_qa
+                #- git checkout master
+                #- git pull origin master
+                #- git fetch --all --tags
+                #- git checkout tags/1.35.3
+                - if [ -d "shelley_qa" ]; then echo "SQA Config folder already exists."; else cp -R /home/artur/Playground/blockchain_networks/shelley_qa/shelley_qa . ; fi
+                - ./_cardano-node run --topology shelley_qa/topology.json --database-path shelley_qa/db --socket-path shelley_qa/node.socket --config shelley_qa/config.json
 
 
               - db-sync:
-                - if [ -d "cardano-db-sync" ]; then echo "Repository already exists."; else git clone git@github.com:input-output-hk/cardano-db-sync.git; fi 
+                - if [ -d "cardano-db-sync" ]; then echo "Repository already exists."; else git clone https://github.com/input-output-hk/cardano-db-sync; fi
                 - cd cardano-db-sync
-                - git checkout master
-                - git pull origin master
-                - git fetch --all --tags
-                - git checkout tags/12.0.0
-                - nix-build -A cardano-db-sync -o db-sync-node
-                #- psql -c "DROP DATABASE \"shelley-test\""
-                #- PGPASSFILE=config/pgpass-shelley-qa-testnet scripts/postgresql-setup.sh --createdb
-                - PGPASSFILE=config/pgpass-shelley-qa-testnet db-sync-node/bin/cardano-db-sync --config config/shelley-qa-config.json --socket-path ../cardano-node/state-node-shelley_qa/node.socket --schema-dir schema/ --state-dir ledger-state/shelley_qa
+                #- git checkout master
+                #- git pull origin master
+                #- git fetch --all --tags
+                #- git checkout tags/13.0.5
+                #- nix-build -A cardano-db-sync -o db-sync-node
+                #- psql -c "DROP DATABASE shelley_qa_playground"
+                #- PGPASSFILE=config/pgpass-shelley-qa scripts/postgresql-setup.sh --createdb
+                - PGPASSFILE=config/pgpass-shelley-qa db-sync-node/bin/cardano-db-sync --config config/shelley-qa-config.json --socket-path ../cardano-node/shelley_qa/node.socket --schema-dir schema/ --state-dir ledger-state/shelley_qa
 
 
               - smash:
                 - cd cardano-db-sync
-                - cabal build cardano-smash-server
-                - cp $(find . -name cardano-smash-server -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-smash-server
-                - echo "artur, password" > admins.txt
-                - PGPASSFILE=config/pgpass-shelley-qa-testnet ./_cardano-smash-server --config config/shelley-qa-config.json --port 3100 --admins admins.txt
+                #- cabal build cardano-smash-server
+                #- cp $(find . -name cardano-smash-server -executable -type f) /home/artur/Playground/blockchain_networks/Base_Projects/cardano-db-sync/_cardano-smash-server
+                #- echo "artur, password" > admins.txt
+                - PGPASSFILE=config/pgpass-shelley-qa ./_cardano-smash-server --config config/shelley-qa-config.json --port 3100 --admins admins.txt
 
 
               - node_playground:
                 - sleep 20
-                - export CARDANO_NODE_SOCKET_PATH=/home/artur/Playground/blockchain_networks/Base_Projects/cardano-node/state-node-shelley_qa/node.socket
+                - export CARDANO_NODE_SOCKET_PATH=/home/artur/Playground/blockchain_networks/Base_Projects/cardano-node/shelley_qa/node.socket
                 - cardano-cli query tip --testnet-magic 3
-        
-        
+
+
               - smash_playground:
                 - sleep 20
                 - cat /home/artur/Playground/blockchain_networks/shelley_qa/shelley_qa.txt
-                - echo "Checking SMASH service status:"    
+                - echo "Checking SMASH service status:"
                 - curl http://localhost:3100/api/v1/status
