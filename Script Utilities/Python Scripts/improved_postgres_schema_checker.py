@@ -27,9 +27,9 @@ def get_schema():
                 attributes.append(row)
                 table_schema.update({str(table_name) : attributes }) 
             db_schema.update({str(table_name) : attributes })
-        conn.close()
-        conn.commit()
         cursor.close()
+        conn.commit()
+        conn.close()
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
@@ -43,7 +43,7 @@ def get_indexes():
 
     try:
         conn = psycopg2.connect(
-            database="preview_old", user='artur'
+            database="preview", user='artur'
         )
         cursor = conn.cursor()
 
@@ -63,11 +63,13 @@ def get_indexes():
                 indexes.append(index)
                 table_indexes.update({str(table_name) : indexes }) 
             all_indexes.update({str(table_name) : indexes })         
-        conn.close()
-        conn.commit()
         cursor.close()
+        conn.commit()
+        conn.close()
+        
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        #print(error)
+        print("error")
     finally:
         if conn is not None:
             conn.close()
@@ -99,9 +101,9 @@ def get_foreign_keys():
                 indexes.append(index)
                 table_indexes.update({str(table_name) : indexes }) 
             all_indexes.update({str(table_name) : indexes })         
-        conn.close()
-        conn.commit()
         cursor.close()
+        conn.commit()
+        conn.close()
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
@@ -460,11 +462,11 @@ expected_schema = {
 expected_indexes = {
     'pool_metadata_ref': ['pool_metadata_ref_pkey',
                           'unique_pool_metadata_ref'],
-    'pool_update': ['pool_update_pkey', 'unique_pool_update'],
-    'pool_owner': ['pool_owner_pkey', 'unique_pool_owner'],
-    'pool_retire': ['pool_retire_pkey', 'unique_pool_retiring'],
-    'ada_pots': ['ada_pots_pkey', 'unique_ada_pots'],
-    'pool_relay': ['pool_relay_pkey', 'unique_pool_relay'],
+    'pool_update': ['pool_update_pkey'],
+    'pool_owner': ['pool_owner_pkey'],
+    'pool_retire': ['pool_retire_pkey'],
+    'ada_pots': ['ada_pots_pkey'],
+    'pool_relay': ['pool_relay_pkey'],
     'schema_version': ['schema_version_pkey'],
     'pool_hash': ['pool_hash_pkey', 'unique_pool_hash'],
     'slot_leader': ['slot_leader_pkey', 'unique_slot_leader'],
@@ -473,44 +475,42 @@ expected_indexes = {
     'stake_address': ['stake_address_pkey', 'unique_stake_address'],
     'tx_out': ['tx_out_pkey', 'unique_txout'],
     'datum': ['datum_pkey', 'unique_datum'],
-    'redeemer': ['unique_redeemer', 'redeemer_pkey'],
-    'tx_in': ['tx_in_pkey', 'unique_txin'],
-    'collateral_tx_in': ['collateral_tx_in_pkey', 'unique_col_txin'],
+    'redeemer': ['redeemer_pkey'],
+    'tx_in': ['tx_in_pkey'],
+    'collateral_tx_in': ['collateral_tx_in_pkey'],
     'meta': ['meta_pkey', 'unique_meta'],
     'epoch': ['epoch_pkey', 'unique_epoch'],
-    'stake_registration': ['stake_registration_pkey',
-                           'unique_stake_registration'],
-    'stake_deregistration': ['stake_deregistration_pkey',
-                             'unique_stake_deregistration'],
-    'tx_metadata': ['tx_metadata_pkey', 'unique_tx_metadata'],
-    'delegation': ['delegation_pkey', 'unique_delegation'],
+    'stake_registration': ['stake_registration_pkey'],
+    'stake_deregistration': ['stake_deregistration_pkey'],
+    'tx_metadata': ['tx_metadata_pkey'],
+    'delegation': ['delegation_pkey'],
     'reward': ['reward_pkey', 'unique_reward'],
-    'withdrawal': ['withdrawal_pkey', 'unique_withdrawal'],
+    'withdrawal': ['withdrawal_pkey'],
     'epoch_stake': ['epoch_stake_pkey', 'unique_stake'],
-    'treasury': ['treasury_pkey', 'unique_treasury'],
-    'reserve': ['reserve_pkey', 'unique_reserves'],
-    'pot_transfer': ['pot_transfer_pkey', 'unique_pot_transfer'],
+    'treasury': ['treasury_pkey'],
+    'reserve': ['reserve_pkey'],
+    'pot_transfer': ['pot_transfer_pkey'],
     'epoch_sync_time': ['epoch_sync_time_pkey', 'unique_epoch_sync_time'
                         ],
-    'ma_tx_mint': ['ma_tx_mint_pkey', 'unique_ma_tx_mint'],
-    'ma_tx_out': ['ma_tx_out_pkey', 'unique_ma_tx_out'],
+    'ma_tx_mint': ['ma_tx_mint_pkey'],
+    'ma_tx_out': ['ma_tx_out_pkey'],
     'script': ['script_pkey', 'unique_script'],
     'cost_model': ['cost_model_pkey', 'unique_cost_model'],
-    'epoch_param': ['epoch_param_pkey', 'unique_epoch_param'],
+    'epoch_param': ['epoch_param_pkey'],
     'pool_offline_data': ['pool_offline_data_pkey',
                           'unique_pool_offline_data'],
-    'param_proposal': ['param_proposal_pkey', 'unique_param_proposal'],
+    'param_proposal': ['param_proposal_pkey'],
     'pool_offline_fetch_error': ['pool_offline_fetch_error_pkey',
                                  'unique_pool_offline_fetch_error'],
     'multi_asset': ['multi_asset_pkey', 'unique_multi_asset'],
     'delisted_pool': ['delisted_pool_pkey', 'unique_delisted_pool'],
     'reserved_pool_ticker': ['reserved_pool_ticker_pkey',
                              'unique_reserved_pool_ticker'],
-    'extra_key_witness': ['extra_key_witness_pkey', 'unique_witness'],
-    'collateral_tx_out': ['collateral_tx_out_pkey', 'unique_col_txout'
-                          ],
-    'reference_tx_in': ['reference_tx_in_pkey', 'unique_ref_txin'],
+    'extra_key_witness': ['extra_key_witness_pkey'],
+    'collateral_tx_out': ['collateral_tx_out_pkey'],
+    'reference_tx_in': ['reference_tx_in_pkey'],
     'redeemer_data': ['redeemer_data_pkey', 'unique_redeemer_data'],
+    'reverse_index': ['reverse_index_pkey'],
     }
 
 # For testing purposes - update expected values with wrong ones:
@@ -527,6 +527,7 @@ def check_database(fn, msg, expected):
         #print(e)
         return e
 
+#print(get_indexes())
 get_indexes_check_result = check_database(get_indexes,'Warning: Wrong Indexes', expected_indexes)
 if get_indexes_check_result:
     print(f"RESULT: {get_indexes_check_result}")
