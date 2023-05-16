@@ -120,6 +120,7 @@ get_cardano_configuration_files()
         echo "Creating pgpass-${env} file"
         echo "/media/artur/ADATA\ Exter/Projects/postgres:${adata_port}:${env}:*:*" > "pgpass-${env}"
         cd ..
+
     done
 
     if [ ! -d "${destination_path}/cardano-db-sync/config" ];then

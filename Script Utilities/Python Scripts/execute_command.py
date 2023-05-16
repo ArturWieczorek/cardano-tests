@@ -4,6 +4,7 @@ import os
 import shlex
 import time
 import shutil
+from assertpy import assert_that, assert_warn
 
 
 def execute_command(command):
@@ -16,7 +17,7 @@ def execute_command(command):
             sys.stdout.flush()    
             # Poll process for new output until it is finished
             if nextline == '' and process.poll() is not None:
-                print("--- End of cabal build all process", flush=True)
+                print(f"--- End of {command} process", flush=True)
                 break           
         exit_code = process.returncode
         if (exit_code != 0):
@@ -42,7 +43,7 @@ def execute_command_and_write_to_log(command, log_file_name):
                 f.write(nextline)
                 # Poll process for new output until it is finished
                 if nextline == '' and process.poll() is not None:
-                    print("--- End of cabal build all process", flush=True)
+                    print("--- End of {command} process", flush=True)
                     break           
             exit_code = process.returncode
             if (exit_code != 0):

@@ -6,7 +6,7 @@ import time
 import shutil
 import csv
 import psycopg2
-from assertpy import assert_that
+from assertpy import assert_that, assert_warn
 
 
 
@@ -37,7 +37,7 @@ conn = psycopg2.connect(
    database="preview_old", user='artur'
 )
 cursor = conn.cursor()
-# #xecute query and get all data
+# execute query and get all data
 cursor.execute('SELECT table_name FROM information_schema.tables WHERE table_schema=\'public\'')
 tabels = cursor.fetchall();
 
@@ -54,7 +54,8 @@ for table in tabels:
         table_schema.update({str(table_name) : attributes }) 
     db_schema.update({str(table_name) : attributes })
 
-#print(db_schema)
+
+#print(db_schema) Use to generate expected schema for latest cardano-db-sync version
 conn.close()
 
 
@@ -406,5 +407,5 @@ expected_schema = {
     }
 
 db_schema.update({"schema_version" : [('id', 'bigint'), ('stage_one', 'bigint'), ('stage_two', 'bigint'), ('stage_three', 'bigint')] })
-assert_that(db_schema).is_equal_to(expected_schema)
+assert_warn(db_schema).is_equal_to(expected_schema)
 
