@@ -1,0 +1,16 @@
+{
+   "1": {
+           "Name": "TX Metadata Tests",
+           "Project": "Cardano-Node"
+      },
+   "2": {
+           "Team": "QA",
+           "Members": ["Dorin", "Artur", "Martin", "Edd"]
+      },
+   "3": {
+          "ComplexValue": {
+              "Nested": "True"
+          }
+      },
+   "4": [{"CI":"Buildkite"}, {"Main_Language":"Haskell"}]
+}
