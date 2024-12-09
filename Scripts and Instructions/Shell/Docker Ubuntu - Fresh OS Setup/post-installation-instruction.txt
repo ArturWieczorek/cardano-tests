@@ -1,0 +1,87 @@
+Post Installation instruction
+
+Postgres:
+
+sudo -i -u postgres
+createuser --interactive
+    > Enter name of role to add: artur
+    > Shall the new role be a superuser? (y/n) y
+createdb artur
+
+Start service:
+    sudo service postgresql start
+
+------------------------------------------------------
+
+Import:
+
+- SHH keys (copy .ssh directory to new machine)
+- Git config
+- .bashrc and .vimrc files
+- gpg files and import them:
+    1) gpg --import private_key_name.key
+    2) gpg --import CXYZJKP...public_key_name.key
+
+Enable powerline with typying pwr in console.
+
+------------------------------------------------------
+
+VIM:
+
+To install plugins from .vimrc launch vim and run:
+    :PluginInstall
+
+For installing AutoCompletion: https://github.com/ycm-core/YouCompleteMe#installation
+
+apt install build-essential cmake vim-nox python3-dev
+apt install mono-complete golang nodejs default-jdk npm
+cd ~/.vim/bundle/YouCompleteMe
+python3 install.py --all
+sudo apt-get install pylint
+
+------------------------------------------------------
+
+Hardware Monitoring:
+
+sudo apt install lm-sensors
+sudo sensors-detect
+sudo systemctl restart kmod
+sensors
+
+sudo apt -y install psensor
+
+------------------------------------------------------
+
+Build cardano Projects:
+
+To download config files use script: 
+https://drive.google.com/file/d/1Xy6numM1uidJihe5AcX_-XcnKWYOdE_6/view?usp=share_link
+
+
+cd "/home/${user}/Projects"
+
+git clone git@github.com:input-output-hk/cardano-node.git
+git clone git@github.com:input-output-hk/cardano-db-sync.git
+
+git clone https://github.com/input-output-hk/cardano-node.git
+git clone https://github.com/input-output-hk/cardano-db-sync.git
+
+# cardano-node
+cd cardano-node
+cabal update
+cabal build all
+cp -p "$(./scripts/bin-path.sh cardano-node)" ~/.local/bin/
+cp -p "$(./scripts/bin-path.sh cardano-cli)" ~/.local/bin/
+
+# cardano-db-sync
+cd "/home/${user}/Projects/cardano-db-sync"
+cabal update
+cabal build all
+
+To find cardano-db-sync executable location use:
+find . -name cardano-db-sync -executable -type f
+
+Output:
+./dist-newstyle/build/x86_64-linux/ghc-8.10.4/cardano-db-sync-12.0.0/build/cardano-db-sync/cardano-db-sync
+
+Copy it to ~/.local/bin/

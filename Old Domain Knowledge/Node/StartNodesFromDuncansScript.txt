@@ -1,0 +1,47 @@
+
+=================================================================================
+
+To start the nodes, in separate terminals use:
+
+cardano-node run \
+  --config                          example/configuration.yaml \
+  --topology                        example/node-bft1/topology.json \
+  --database-path                   example/node-bft1/db \
+  --socket-path                     example/node-bft1/node.sock \
+  --shelley-kes-key                 example/node-bft1/kes.skey \
+  --shelley-vrf-key                 example/node-bft1/vrf.skey \
+  --shelley-operational-certificate example/node-bft1/node.cert \
+  --port                            3001
+cardano-node run \
+  --config                          example/configuration.yaml \
+  --topology                        example/node-bft2/topology.json \
+  --database-path                   example/node-bft2/db \
+  --socket-path                     example/node-bft2/node.sock \
+  --shelley-kes-key                 example/node-bft2/kes.skey \
+  --shelley-vrf-key                 example/node-bft2/vrf.skey \
+  --shelley-operational-certificate example/node-bft2/node.cert \
+  --port                            3002
+cardano-node run \
+  --config                          example/configuration.yaml \
+  --topology                        example/node-pool1/topology.json \
+  --database-path                   example/node-pool1/db \
+  --socket-path                     example/node-pool1/node.sock \
+  --shelley-kes-key                 example/node-pool1/kes.skey \
+  --shelley-vrf-key                 example/node-pool1/vrf.skey \
+  --shelley-operational-certificate example/node-pool1/node.cert \
+  --port                            3003
+
+To submit the transaction
+
+CARDANO_NODE_SOCKET_PATH=example/node-bft1/node.sock \
+  cardano-cli shelley transaction submit \
+    --tx-file example/tx1.tx \
+    --testnet-magic 42
+
+Then wait until epoch #2 (counting from 0) starting at slot 3000
+and query the stake distribution, and see if the pool node creates blocks
+
+CARDANO_NODE_SOCKET_PATH=example/node-bft1/node.sock \
+  cardano-cli shelley query stake-distribution --testnet-magic 42
+
+=====================================================================================

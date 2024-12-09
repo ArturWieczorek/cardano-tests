@@ -1,0 +1,951 @@
+cardano-cli shelley transaction build-raw \
+--tx-in f9566918009a17eb3c877ec0a8ef3d08deaf85493ad48b3267798f0362d187b3#1 \
+--tx-out 60dc911d6dacf4eae692ecd46d65a0d1873af5a34b5ba6321a0eb25488+1000000 \
+--tx-out 008a05f38a7f58e4fe88a6baf3fc3c2c5268bcd3001ac291fe71a5a7e54afcf646b4a69949f728edfd5769fc77fc8f4f1cc3f1272ad7b5b052+999979030123 \
+--ttl 796546 \
+--fee 10000000 \
+--metadata-file metadata.json \
+--out-file tx.raw
+
+
+
+
+cardano-cli shelley transaction sign \
+--tx-body-file tx.raw \
+--signing-key-file e2e-tests-directory/addresses/user1.skey \
+--testnet-magic 42 \
+--out-file tx.signed
+
+
+cardano-cli shelley transaction submit \
+        --tx-file tx.signed \
+        --testnet-magic 42
+
+
+apt install libsodium-dev libsodium
+Also add:
+package cardano-crypto-praos
+flags: -external-libsodium-vrf
+to your cabal.project.local
+
+
+
+I think first the transaction should be mined (included into a block),
+your local node sync/get that new block (usually the next tip) and only after
+that the new utxo will be displayed by cardano-cli shelley query utxo
+
+
+
+1 PART - INIT
+
+DL config files:
+
+mkdir shelley-config
+
+wget https://hydra.iohk.io/build/3175192/download/1/shelley_testnet-config.json
+wget https://hydra.iohk.io/build/3175192/download/1/shelley_testnet-genesis.json
+wget https://hydra.iohk.io/build/3175192/download/1/shelley_testnet-topology.json
+
+Run node:
+
+cardano-node run --topology shelley-config/shelley_testnet-topology.json --database-path shelley-config/db --socket-path shelley-config/node.socket --config shelley-config/shelley_testnet-config.json
+
+
+Create keys and payment/stake address:
+
+Payment key pair
+
+cardano-cli shelley address key-gen \
+--verification-key-file payment.vkey \
+--signing-key-file payment.skey
+
+Stake key pair
+
+cardano-cli shelley stake-address key-gen \
+--verification-key-file stake.vkey \
+--signing-key-file stake.skey
+
+
+Payment address
+
+cardano-cli shelley address build \
+--payment-verification-key-file payment.vkey \
+--stake-verification-key-file stake.vkey \
+--out-file payment.addr \
+--testnet-magic 42
+
+Stake address
+
+cardano-cli shelley stake-address build \
+--stake-verification-key-file stake.vkey \
+--out-file stake.addr \
+--testnet-magic 42
+
+
+Request funds from faucet:
+
+curl -v -XPOST "https://faucet.shelley-testnet.dev.cardano.org/send-money/0089620d252b78e645a5d14fe081766d9098e15164c07885aa9ac38a1733f3adae0820e3c7ffde3fd1888d9fcaa592c0be4585806516ac978b?apiKey=Xk4cN5mwkWh8NhO6O3bf41q4SEZjwY2g"
+
+curl -v -XPOST "https://faucet.shelley-testnet.dev.cardano.org/send-money/$(cat payment.addr)?apiKey=Xk4cN5mwkWh8NhO6O3bf41q4SEZjwY2g"
+
+{"success":true,"amount":1000000000,"fee":168141,"txid":"8d3447471b3270c7a7b2af3dd2c4dc21e4338c437902b2d107e3f50b1010ca11"}
+
+
+Check funds on address:
+
+export CARDANO_NODE_SOCKET_PATH=/home/artur/Projects/shelley-testnet/cardano-node/shelley-config/node.socket
+
+cardano-cli shelley query utxo --address "$(cat payment.addr)" --testnet-magic 42
+cardano-cli shelley query utxo --address 0089620d252b78e645a5d14fe081766d9098e15164c07885aa9ac38a1733f3adae0820e3c7ffde3fd1888d9fcaa592c0be4585806516ac978b --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+8d3447471b3270c7a7b2af3dd2c4dc21e4338c437902b2d107e3f50b1010ca11     0        1000000000
+
+
+2 - CREATE TX
+
+Create a second payment key pair and address
+
+Generate Payment Key Pair
+
+cardano-cli shelley address key-gen \
+    --verification-key-file payment2.vkey \
+    --signing-key-file payment2.skey
+
+
+Generate Stake Key Pair
+
+cardano-cli shelley stake-address key-gen \
+    --verification-key-file stake2.vkey \
+    --signing-key-file stake2.skey
+
+
+Generate Payment Address
+
+cardano-cli shelley address build \
+--payment-verification-key-file payment2.vkey \
+--stake-verification-key-file stake2.vkey \
+--out-file payment2.addr \
+--testnet-magic 42
+
+
+Generate Stake Address
+
+cardano-cli shelley stake-address build \
+--staking-verification-key-file stake2.vkey \
+--out-file stake2.addr \
+--testnet-magic 42
+
+To create our transaction we need the protocl parameters
+
+cardano-cli shelley query protocol-parameters \
+    --testnet-magic 42 \
+    --out-file protocol.json
+
+
+cardano-node/tests$ cardano-cli shelley query utxo --address $(cat ../keys/1/payment.addr) --testnet-magic 42
+
+TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+b0654ef6563e4473c2979e65097331ac8e73f394691bd1f38ef8ef0fe375a10f     0      100000000000
+
+
+
+cardano-cli shelley query tip --testnet-magic 42
+Tip (SlotNo {unSlotNo = 173227}) (ShelleyHash {unShelleyHash = HashHeader {unHashHeader = c40116adce6b77edc45c970b7b20a2761e5c223de9a6c02acd5b229519da8120}}) (BlockNo {unBlockNo = 7683})
+
+
+ttl=273227
+
+tests$ cardano-cli shelley transaction calculate-min-fee \
+--tx-in-count 1 \
+--tx-out-count 2 \
+--ttl 273227 \
+--testnet-magic 42 \
+--signing-key-file ../keys/1/payment.skey \
+--protocol-params-file protocol.json
+runTxCalculateMinFee: 167965
+
+
+$ expr 100000000000 - 10000000000 - 167965
+89999832035
+
+
+cardano-cli shelley transaction build-raw \
+--tx-in b0654ef6563e4473c2979e65097331ac8e73f394691bd1f38ef8ef0fe375a10f#0 \
+--tx-out $(cat ../keys/2/payment2.addr)+10000000000 \
+--tx-out $(cat ../keys/1/payment.addr)+89999832035 \
+--ttl 267500 \
+--fee 167965 \
+--out-file tx001.raw
+
+cardano-cli shelley transaction sign \
+--tx-body-file tx001.raw \
+--signing-key-file ../keys/1/payment.skey \
+--testnet-magic 42 \
+--out-file tx001.signed
+
+
+cardano-cli shelley transaction submit \
+--tx-file tx001.signed \
+--testnet-magic 42
+
+
+cardano-cli shelley query utxo --address $(cat ../keys/2/payment2.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+fb9ebbb344355eed4d5388877456191ef949d32b9bf1084f841daaee5797dd7f     0       10000000000
+
+cardano-cli shelley query utxo --address $(cat ../keys/1/payment.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+fb9ebbb344355eed4d5388877456191ef949d32b9bf1084f841daaee5797dd7f     1       89999832035
+
+
+
+PART 3 Create Pool and Realy, cold, hot keys
+
+mkdir pool
+mkdir relay
+
+cd pool
+
+cardano-cli shelley node key-gen-KES \
+--verification-key-file kes.vkey \
+--signing-key-file kes.skey
+
+mkdir ~/cold-keys
+pushd ~/cold-keys/
+
+cardano-cli shelley node key-gen \
+--cold-verification-key-file cold.vkey \
+--cold-signing-key-file cold.skey \
+--operational-certificate-issue-counter cold.counter
+
+pushd +1
+
+KES Period
+
+From genesis:
+
+"slotsPerKESPeriod": 3600,
+"maxKESEvolutions": 120,
+
+cardano-cli shelley query tip --testnet-magic 42
+Tip (SlotNo {unSlotNo = 52120})
+
+
+
+ calculate the current period :
+
+expr 52120 / 3600
+14
+
+create the operational certificate for pool
+
+cardano-cli shelley node issue-op-cert \
+    --kes-verification-key-file kes.vkey \
+    --cold-signing-key-file ~/cold-keys/cold.skey \
+    --operational-certificate-issue-counter ~/cold-keys/cold.counter \
+    --kes-period 14 \
+    --out-file node.cert
+
+
+generate a VRF key pair for stake pool
+
+cardano-cli shelley node key-gen-VRF \
+--verification-key-file vrf.vkey \
+--signing-key-file vrf.skey
+
+POOL topology:
+{
+  "Producers": [
+    {
+      "addr": "127.0.0.1",
+      "port": 4242,
+      "valency": 1
+    }
+  ]
+}
+
+RELAY topology:
+{
+  "Producers": [
+    {
+      "addr": "127.0.0.1",
+      "port": 4240,
+      "valency": 1
+    },
+    {
+      "addr": "relays-new.shelley-testnet.dev.cardano.org",
+      "port": 3001,
+      "valency": 1
+    }
+  ]
+}
+
+
+Start relay:
+
+cardano-node run --topology relay/shelley_testnet-topology.json --database-path relay/db --socket-path relay/node.socket --config relay/shelley_testnet-config.json --port 4242
+
+
+Realy output: success:
+[artur-de:cardano.node.IpSubscription:Info:59] [2020-06-25 20:35:41.71 UTC] [String "Trying to connect to 127.0.0.1:4240",String "[127.0.0.1:4240]",String "WithIPList SubscriptionTrace",String "LocalAddresses {laIpv4 = Just 0.0.0.0:0, laIpv6 = Just [::]:0, laUnix = Nothing}"]
+[artur-de:cardano.node.IpSubscription:Info:144] [2020-06-25 20:35:41.71 UTC] [String "Connection Attempt Start, destination 127.0.0.1:4240",String "[127.0.0.1:4240]",String "WithIPList SubscriptionTrace",String "LocalAddresses {laIpv4 = Just 0.0.0.0:0, laIpv6 = Just [::]:0, laUnix = Nothing}"]
+[artur-de:cardano.node.IpSubscription:Notice:59] [2020-06-25 20:35:41.71 UTC] [String "Waiting 0.025s before attempting a new connection",String "[127.0.0.1:4240]",String "WithIPList SubscriptionTrace",String "LocalAddresses {laIpv4 = Just 0.0.0.0:0, laIpv6 = Just [::]:0, laUnix = Nothing}"]
+[artur-de:cardano.node.IpSubscription:Notice:144] [2020-06-25 20:35:41.71 UTC] [String "Connection Attempt End, destination 127.0.0.1:4240 outcome: ConnectSuccessLast",String "[127.0.0.1:4240]",String "WithIPList SubscriptionTrace",String "LocalAddresses {laIpv4 = Just 0.0.0.0:0, laIpv6 = Just [::]:0, laUnix = Nothing}"]
+[artur-de:cardano.node.ChainDB:Notice:36] [2020-06-25 20:35:59.34 UTC] Chain extended, new tip: (Point 178559, HashHeader {unHashHeader = f13d6f3b0bba0ccd063fe592d9eabdba75c9bf6d93c3ef1834647019917000d1})
+[artur-de:cardano.node.ChainDB:Notice:36] [2020-06-25 20:36:00.36 UTC] Chain extended, new tip: (Point 178560, HashHeader {unHashHeader = d849ef0b2d13628d75bdcfcd88c422859ed107a219f1d35a9378418ab8de5a8b})
+[artur-de:cardano.node.ChainDB:Notice:36] [2020-06-25 20:36:12.62 UTC] Chain extended, new tip: (Point 178571, HashHeader {unHashHeader = 76152012927c463ba10dcf802e59b1144239a56f37c283f91896a3cfdc78c472})
+
+
+
+Start pool:
+
+cardano-node run --topology pool/shelley_testnet-topology.json --database-path pool/db --socket-path pool/node.socket --config pool/shelley_testnet-config.json --shelley-kes-key pool/kes.skey --shelley-vrf-key pool/vrf.skey --shelley-operational-certificate pool/node.cert --port 4240
+
+[artur-de:cardano.node.Forge:Info:35] [2020-06-25 20:36:40.00 UTC] Not leading slot 178600
+[artur-de:cardano.node.ForgeTime:Info:35] [2020-06-25 20:36:40.00 UTC] fromList []
+[artur-de:cardano.node.ChainDB:Notice:25] [2020-06-25 20:36:40.45 UTC] Chain extended, new tip: (Point 178600, HashHeader {unHashHeader = 224f2831e984af2f818337b0bf459d2ef7de242cee68b9e842a8614dcad96fc6})
+[artur-de:cardano.node.Forge:Info:35] [2020-06-25 20:36:41.00 UTC] Testing for leadership at slot 178601
+[artur-de:cardano.node.ForgeTime:Info:35] [2020-06-25 20:36:41.00 UTC] fromList []
+[artur-de:cardano.node.Forge:Info:35] [2020-06-25 20:36:41.00 UTC] Not leading slot 178601
+
+
+
+Part 4 register stake address and delegate stake to existing pool
+
+Create 3rd address - we will delegate funds from addr2 and addr3
+
+cardano-cli shelley address key-gen \
+--verification-key-file payment3.vkey \
+--signing-key-file payment3.skey
+
+
+cardano-cli shelley stake-address key-gen \
+--verification-key-file stake3.vkey \
+--signing-key-file stake3.skey
+
+cardano-cli shelley address build \
+--payment-verification-key-file payment3.vkey \
+--stake-verification-key-file stake3.vkey \
+--out-file payment3.addr \
+--testnet-magic 42
+
+cardano-cli shelley stake-address build \
+--staking-verification-key-file stake3.vkey \
+--out-file stake3.addr \
+--testnet-magic 42
+
+
+cardano-cli shelley query utxo --address $(cat ../keys/1/payment.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+fb9ebbb344355eed4d5388877456191ef949d32b9bf1084f841daaee5797dd7f     1       89999832035
+
+
+
+Sen 9K ADA to addr 3 from addr1:
+
+expr 89999832035 - 9000000000 - 167965
+80999664070
+
+cardano-cli shelley transaction build-raw \
+--tx-in fb9ebbb344355eed4d5388877456191ef949d32b9bf1084f841daaee5797dd7f#1 \
+--tx-out $(cat ../keys/3/payment3.addr)+9000000000 \
+--tx-out $(cat ../keys/1/payment.addr)+80999664070 \
+--ttl 267500 \
+--fee 167965 \
+--out-file tx002.raw
+
+cardano-cli shelley transaction sign \
+--tx-body-file tx002.raw \
+--signing-key-file ../keys/1/payment.skey \
+--testnet-magic 42 \
+--out-file tx002.signed
+
+
+cardano-cli shelley transaction submit \
+--tx-file tx002.signed \
+--testnet-magic 42
+
+
+cardano-cli shelley query utxo --address $(cat ../keys/3/payment3.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+7758adffe29a8799572929f1fb61c3f0fb30bb0897c73c36da7c988b2ee22a00     0        9000000000
+
+
+cardano-cli shelley query utxo --address $(cat ../keys/1/payment.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+7758adffe29a8799572929f1fb61c3f0fb30bb0897c73c36da7c988b2ee22a00     1       80999664070
+
+
+create a certificate for stake address 2 and 3, stake.cert
+
+cardano-cli shelley stake-address registration-certificate \
+--staking-verification-key-file 2/stake2.vkey \
+--out-file 2/stake2.cert
+
+cardano-cli shelley stake-address registration-certificate \
+--staking-verification-key-file 3/stake3.vkey \
+--out-file 3/stake3.cert
+
+
+Calculate fee:
+
+cardano-cli shelley transaction calculate-min-fee \
+--tx-in-count 1 \
+--tx-out-count 1 \
+--ttl 355000 \
+--testnet-magic 42 \
+--signing-key-file ../keys/2/payment2.skey \
+--signing-key-file ../keys/2/stake2.skey \
+--certificate ../keys/2/stake2.cert \
+--protocol-params-file protocol.json
+runTxCalculateMinFee: 171133
+
+
+Registration for stake addr 2:
+
+
+cardano-cli shelley query utxo --address $(cat ../keys/2/payment2.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+fb9ebbb344355eed4d5388877456191ef949d32b9bf1084f841daaee5797dd7f     0       10000000000
+
+Key deposit from genesis:
+"keyDeposit": 400000,
+
+expr 10000000000 - 400000 - 171133
+9999428867
+
+cardano-cli shelley transaction build-raw \
+    --tx-in fb9ebbb344355eed4d5388877456191ef949d32b9bf1084f841daaee5797dd7f#0 \
+    --tx-out $(cat ../keys/2/payment2.addr)+9999428867 \
+    --ttl 267500 \
+    --fee 171133 \
+    --tx-body-file tx003.raw \
+    --certificate ../keys/2/stake2.cert
+
+
+cardano-cli shelley transaction sign \
+--tx-body-file tx003.raw \
+--signing-key-file ../keys/2/payment2.skey \
+--signing-key-file ../keys/2/stake2.skey \
+--testnet-magic 42 \
+--tx-file tx003.signed
+
+
+cardano-cli shelley transaction submit \
+--tx-file tx003.signed \
+--testnet-magic 42
+
+cardano-cli shelley query utxo --address $(cat ../keys/2/payment2.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+c0c8d96adaf580c27b5ad714e839ad74a31ecd44227b5ac1ddf68f5ed8960544     0        9999428867
+
+
+Registration for stake addr 3:
+
+
+cardano-cli shelley query utxo --address $(cat ../keys/3/payment3.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+7758adffe29a8799572929f1fb61c3f0fb30bb0897c73c36da7c988b2ee22a00     0        9000000000
+
+Key deposit from genesis:
+"keyDeposit": 400000,
+
+expr 9000000000 - 400000 - 171133
+8999428867
+
+cardano-cli shelley transaction build-raw \
+    --tx-in 7758adffe29a8799572929f1fb61c3f0fb30bb0897c73c36da7c988b2ee22a00#0 \
+    --tx-out $(cat ../keys/3/payment3.addr)+8999428867 \
+    --ttl 267500 \
+    --fee 171133 \
+    --tx-body-file tx004.raw \
+    --certificate ../keys/3/stake3.cert
+
+
+cardano-cli shelley transaction sign \
+--tx-body-file tx004.raw \
+--signing-key-file ../keys/3/payment3.skey \
+--signing-key-file ../keys/3/stake3.skey \
+--testnet-magic 42 \
+--tx-file tx004.signed
+
+
+cardano-cli shelley transaction submit \
+--tx-file tx004.signed \
+--testnet-magic 42
+
+
+cardano-cli shelley query utxo --address $(cat ../keys/3/payment3.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+a8694ac303ce69fe15c649e98642368505fe949790b54988701164f6e40b6919     0        8999428867
+
+
+
+cardano-cli shelley query stake-distribution --testnet-magic 42
+                           PoolId                                 Stake frac
+------------------------------------------------------------------------------
+042abb85ebdee8ddd436dca5057659c6a986c7e76402636160c96582   1.421e-3
+069ebd7a90e5b6c6b0710581eb356c52a8b3b932a01e458bbb658d06   1.356e-4
+0c3a268fe42f00f85ca99b051f93efb6c0206d6c944cf584cdc1ca2a   1.421e-3
+
+
+
+Let's delegate stake 2 address to:
+
+Pool Name:
+❰SM₳UG❱ ⻯ Smaug
+
+Pool ID:
+31d6318b3a718528a8139c3ce3b827062dc119e7d8d420d0696070d2
+
+Pool VKey:
+prefix: 5820
+0349f9a18005b69de8ed5c72c01bb4372b7125ed4810df3da4be96021ad8ce78
+
+
+cardano-cli shelley query stake-address-info --address "$(cat ../keys/2/stake2.addr)" --testnet-magic 42
+{
+    "581de026786f72a7178814ea3b394da9d7ba37b52b2fef8daf9378725de145": {
+        "delegation": null,
+        "rewardAccountBalance": 0
+    }
+}
+
+
+create a delegation certificate for stake 2, deleg2.cert.
+
+cardano-cli shelley stake-address delegation-certificate \
+--stake-verification-key-file 2/stake2.vkey \
+--cold-verification-key-file smaug-pool.vkey \
+--out-file 2/deleg2.cert
+
+
+build, sign and submit a transaction:
+
+cardano-cli shelley query utxo --address $(cat ../keys/2/payment2.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+c0c8d96adaf580c27b5ad714e839ad74a31ecd44227b5ac1ddf68f5ed8960544     0        9999428867
+
+Let's assume fee: 200000
+expr 9999428867 - 200000
+9999228867
+
+cardano-cli shelley transaction build-raw \
+--tx-in c0c8d96adaf580c27b5ad714e839ad74a31ecd44227b5ac1ddf68f5ed8960544#0 \
+--tx-out $(cat ../keys/2/payment2.addr)+9999228867 \
+--ttl 267500 \
+--fee 200000 \
+--out-file tx005.raw \
+--certificate ../keys/2/deleg2.cert
+
+
+cardano-cli shelley transaction sign \
+--tx-body-file tx005.raw \
+--signing-key-file ../keys/2/payment2.skey \
+--signing-key-file ../keys/2/stake2.skey \
+--testnet-magic 42 \
+--out-file tx005.signed
+
+
+cardano-cli shelley transaction submit \
+--tx-file tx005.signed \
+--testnet-magic 42
+
+
+LET'S CHECK DELEGATION:
+
+cardano-cli shelley query stake-address-info --address 581de0db0ec673d623143c7b04c190eb51e6bed517c384ba3fff0f694d320d --testnet-magic 42
+{
+    "581de0db0ec673d623143c7b04c190eb51e6bed517c384ba3fff0f694d320d": {
+        "delegation": "1fd1450ad92fc024235e2bf908a9b178a6e13f2e653ff0dec5414c46",
+        "rewardAccountBalance": 0
+    }
+}
+
+
+PART 5 REGISTER STAKE POOL:
+
+
+Create a JSON file with your pool's metadata
+
+/pool/pool-metadata.json :
+
+{
+  "name": "Artur_Pool",
+  "description": "Shelley Tests",
+  "ticker": "QA1",
+  "homepage": "http://arturwieczorek.neostrada.pl/"
+}
+
+
+Get the hash:
+
+cardano-cli shelley stake-pool metadata-hash --pool-metadata-file ../pool/pool-metadata.json
+474a4fadac924eafb3c1f9d7998b8d432e02e4a33e4e9b41c0d8131c2e397aa2
+
+
+
+cardano-cli shelley stake-pool registration-certificate \
+--cold-verification-key-file ~/cold-keys/cold.vkey \
+--vrf-verification-key-file ../pool/vrf.vkey \
+--pool-pledge 123000000 \
+--pool-cost 246000000 \
+--pool-margin 0.07 \
+--pool-reward-account-verification-key-file 3/stake3.vkey \
+--pool-owner-stake-verification-key-file 3/stake3.vkey \
+--metadata-url shorturl.at/etKP6 \
+--metadata-hash 521a15cabdc7ecf6020be5a880a67bd8404f13914bc7c397ce2a4131e6c632db \
+--out-file ../pool/pool.cert \
+--testnet-magic 42
+
+ERROR: Can we make it more verbose that link is too long ?
+
+option --metadata-url: cannot parse value `https://gist.githubusercontent.com/ArturWieczorek/7fa86076bc660a197f4fa344c45f2ae2/raw/ef08f1fc792db68f0242718b9a434721d78c8472/test_pool.json'
+
+
+Pledge some stake to your stake pool.
+
+cardano-cli shelley stake-address delegation-certificate \
+--staking-verification-key-file 3/stake3.vkey \
+--stake-pool-verification-key-file ~/cold-keys/cold.vkey \
+--out-file ../pool/deleg.cert
+
+
+Address 3:
+008f2ffef8be284148c35f8449f8fc9e78210c954392fc229c49d9645f426404550fec8d005bf4fca304a359c40780a90eabc5df9d2902eb24
+
+Use faucet:
+curl -v -XPOST "https://faucet.shelley-testnet.dev.cardano.org/send-money/008f2ffef8be284148c35f8449f8fc9e78210c954392fc229c49d9645f426404550fec8d005bf4fca304a359c40780a90eabc5df9d2902eb24?apiKey=Xk4cN5mwkWh8NhO6O3bf41q4SEZjwY2g"
+
+
+cardano-cli shelley query utxo --address $(cat ../keys/3/payment3.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+a8694ac303ce69fe15c649e98642368505fe949790b54988701164f6e40b6919     0        8999428867
+
+From genesis:
+"poolDeposit": 500000000,
+
+Lets assume fee 250000
+
+expr 8999428867 - 500000000 - 250000
+8499178867
+
+cardano-cli shelley query tip --testnet-magic 42
+Tip (SlotNo {unSlotNo = 223615})
+
+cardano-cli shelley transaction build-raw \
+--tx-in a8694ac303ce69fe15c649e98642368505fe949790b54988701164f6e40b6919#0 \
+--tx-out $(cat ../keys/3/payment3.addr)+8499178867 \
+--ttl 323615 \
+--fee 250000 \
+--tx-body-file tx006.raw \
+--certificate ../pool/pool.cert \
+--certificate ../pool/deleg.cert
+
+
+cardano-cli shelley transaction sign \
+--tx-body-file tx006.raw \
+--signing-key-file ../keys/3/payment3.skey \
+--signing-key-file ~/cold-keys/cold.skey \
+--signing-key-file ../keys/3/stake3.skey \
+--testnet-magic 42 \
+--tx-file tx006.signed
+
+cardano-cli shelley transaction submit \
+    --tx-file tx006.signed \
+    --testnet-magic 42
+
+
+cardano-cli shelley stake-pool id --verification-key-file ~/cold-keys/cold.vkey
+e14a8db4f73e88a33cfaaef9986bdc48303181c9b509c497b96d2ea0
+
+
+cardano-cli shelley query stake-address-info --address "$(cat ../keys/3/stake3.addr)" --testnet-magic 42
+{
+    "581de0489b1a0e8436b9fdd1297f4965be35106a1f9069a8ed616eca579488": {
+        "delegation": "e14a8db4f73e88a33cfaaef9986bdc48303181c9b509c497b96d2ea0",
+        "rewardAccountBalance": 0
+    }
+}
+
+cardano-cli shelley query stake-distribution --testnet-magic 42 | grep f0b7ea81efce27afc15b0fe8c6
+<<NOTHING>>
+
+
+Another pool:
+
+cardano-cli shelley query stake-address-info --address 581de03aeebdc5040e9a8003d48fe075360333f5c8c9c5aebbdf762e6cd2f2 --testnet-magic 42
+{
+    "581de03aeebdc5040e9a8003d48fe075360333f5c8c9c5aebbdf762e6cd2f2": {
+        "delegation": "506ab0fb109dbfb485df9613a9c673ce43ebf3662e49d3b52f501876",
+        "rewardAccountBalance": 0
+    }
+}
+
+
+Step 7: Deregister Stake Address:
+
+Non Zero Funds Address (2) Value:
+
+
+cardano-cli shelley query stake-address-info --address 581de0db0ec673d623143c7b04c190eb51e6bed517c384ba3fff0f694d320d --testnet-magic 42
+{
+    "581de0db0ec673d623143c7b04c190eb51e6bed517c384ba3fff0f694d320d": {
+        "delegation": "1fd1450ad92fc024235e2bf908a9b178a6e13f2e653ff0dec5414c46",
+        "rewardAccountBalance": 186
+    }
+}
+
+
+cardano-cli shelley transaction submit \
+--tx-file 2/tx-deregister-stake-addr.signed \
+--testnet-magic 42
+Error while submitting tx: Failed to submit Shelley transaction: ApplyTxError [LedgerFailure
+(DelegsFailure (DelplFailure (DelegFailure (StakeKeyNonZeroAccountBalanceDELEG (Just (Coin 186)))))),
+LedgerFailure (UtxowFailure (UtxoFailure (ValueNotConservedUTxO (Coin 194454070) (Coin 194054070))))]
+
+
+Step 8:
+
+Send rewards from stake address to payment address:
+
+Tx In and Tx Out: source == destination address 1
+
+FEE: 171089
+
+
+
+cardano-cli shelley query utxo --address $(cat 1/payment.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+a82f8d2a85cde39118a894306ad7a85ba40af221406064a56bdd9b3c61153527     1         194054070
+
+expr 194054070 - 171089
+193882981
+
+cardano-cli shelley transaction build-raw \
+--tx-in a82f8d2a85cde39118a894306ad7a85ba40af221406064a56bdd9b3c61153527#1 \
+--tx-out $(cat 1/payment.addr)+193882981 \
+--withdrawal 581de0db0ec673d623143c7b04c190eb51e6bed517c384ba3fff0f694d320d+186 \
+--ttl 531099 \
+--fee 171089 \
+--out-file spend-rewards.tx
+
+cardano-cli shelley transaction sign \
+--tx-body-file spend-rewards.tx \
+--signing-key-file 1/payment.skey \
+--signing-key-file 2/stake2.skey \
+--testnet-magic 42 \
+--out-file spend-rewards.tx.signed
+
+
+cardano-cli shelley transaction submit \
+--tx-file spend-rewards.tx.signed \
+--testnet-magic 42
+Error while submitting tx: Failed to submit Shelley transaction: ApplyTxError
+[LedgerFailure (UtxowFailure (UtxoFailure (ValueNotConservedUTxO (Coin 194054256) (Coin 194054070))))]
+
+expr 194054256 - 194054070
+186
+
+
+expr 194054256 - 171089
+193883167
+
+cardano-cli shelley transaction build-raw \
+--tx-in a82f8d2a85cde39118a894306ad7a85ba40af221406064a56bdd9b3c61153527#1 \
+--tx-out $(cat 1/payment.addr)+193883167 \
+--withdrawal 581de0db0ec673d623143c7b04c190eb51e6bed517c384ba3fff0f694d320d+186 \
+--ttl 531099 \
+--fee 171089 \
+--out-file spend-rewards.tx
+
+cardano-cli shelley transaction sign \
+--tx-body-file spend-rewards.tx \
+--signing-key-file 1/payment.skey \
+--signing-key-file 2/stake2.skey \
+--testnet-magic 42 \
+--out-file spend-rewards.tx.signed
+
+cardano-cli shelley transaction submit \
+--tx-file spend-rewards.tx.signed \
+--testnet-magic 42
+
+
+cardano-cli shelley query utxo --address $(cat 1/payment.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+a82f8d2a85cde39118a894306ad7a85ba40af221406064a56bdd9b3c61153527     1         194054070
+
+Wait few seconds:
+
+cardano-cli shelley query utxo --address $(cat 1/payment.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+5f4290b113c53f735ff0a0301bbc778e8943afe39473817332d44b881ac84092     0         193883167
+
+
+Rewards were sent:
+
+cardano-cli shelley query stake-address-info --address 581de0db0ec673d623143c7b04c190eb51e6bed517c384ba3fff0f694d320d --testnet-magic 42
+{
+    "581de0db0ec673d623143c7b04c190eb51e6bed517c384ba3fff0f694d320d": {
+        "delegation": "1fd1450ad92fc024235e2bf908a9b178a6e13f2e653ff0dec5414c46",
+        "rewardAccountBalance": 0
+    }
+}
+
+
+Step 9: Now de-register "empty" stake address (no rewards on stake address)
+
+cardano-cli shelley stake-address deregistration-certificate --stake-verification-key-file 2/stake2.vkey --out-file 2/deregistration.cert
+
+cardano-cli shelley query utxo --address $(cat 1/payment.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+5f4290b113c53f735ff0a0301bbc778e8943afe39473817332d44b881ac84092     0         193883167
+
+# Add +400000 from Key Deposit
+
+cardano-cli shelley transaction build-raw \
+--tx-in 5f4290b113c53f735ff0a0301bbc778e8943afe39473817332d44b881ac84092#0 \
+--tx-out $(cat 1/payment.addr)+194112034 \
+--ttl 531099 \
+--fee 171133 \
+--out-file 2/tx-deregister-stake-addr.raw \
+--certificate-file 2/deregistration.cert
+
+
+cardano-cli shelley transaction sign \
+--tx-body-file 2/tx-deregister-stake-addr.raw \
+--signing-key-file 1/payment.skey \
+--signing-key-file 2/stake2.skey \
+--testnet-magic 42 \
+--out-file 2/tx-deregister-stake-addr.signed
+
+
+cardano-cli shelley transaction submit \
+--tx-file 2/tx-deregister-stake-addr.signed \
+--testnet-magic 42
+
+
+cardano-cli shelley query stake-address-info --address 581de0db0ec673d623143c7b04c190eb51e6bed517c384ba3fff0f694d320d --testnet-magic 42
+{}
+
+
+--------------------------------------------------------------------------------
+
+QUESTION:
+
+Why two versions of the same command are available ?
+V1 - OLD
+cardano-cli shelley stake-address delegation-certificate --staking-verification-key-file 2/stake2.vkey --stake-pool-verification-key-file CardanoBay.vkey --out-file 2/deleg2.cert
+
+V2 - New 1.14.1
+cardano-cli shelley stake-address delegation-certificate
+Usage: cardano-cli shelley stake-address delegation-certificate --stake-verification-key-file FILE
+                                                                --cold-verification-key-file FILE
+                                                                --out-file FILE
+Create a stake address delegation certificate
+
+--------------------------------------------------------------------------------
+
+
+
+################################################################################
+
+This option does not work:
+
+cardano-cli shelley stake-address delegate
+Usage: cardano-cli shelley stake-address delegate --signing-key-file FILE
+                                                  --pool-id STRING
+                                                  --delegation-fee LOVELACE
+                                                  [--host-addr HOST-NAME]
+                                                  [--port PORT]
+  Delegate from a stake address to a stake pool
+
+Available options:
+  --signing-key-file FILE  The private key file.
+  --pool-id STRING         The pool identifier.
+  --delegation-fee LOVELACE
+                           The delegation fee in Lovelace.
+  --host-addr HOST-NAME    Optionally limit node to one ipv6 or ipv4 address
+  --port PORT              The port number
+
+EXAMPLE:
+  cardano-cli shelley stake-address delegate --signing-key-file ../keys/3/stake3.skey --pool-id 0e26f399908cbb0b65d534f97616ce1106e0244307dae03e887995ce --delegation-fee 500000
+  runStakeAddressCmd: StakeKeyDelegate (PrivKeyFile "../keys/3/stake3.skey") (PoolId "0e26f399908cbb0b65d534f97616ce1106e0244307dae03e887995ce") 500000 (NodeAddress {naHostAddress = Nothing, naPort = 0})
+
+################################################################################
+
+
+
+
+Not supported CLI operations for shelley era:
+
+to-verification          Extract a verification key in its base64 form.
+signing-key-public       Pretty-print a signing key's verification key (not a secret).
+signing-key-address      Print address of a signing key.
+
+
+OTHER commands that were checked and working:
+
+cardano-cli shelley transaction txid --tx-body-file ../tests/tx001.raw
+122c1e319ef6a086ebfd8e991a028d429cc69d0f221c09560e2b3848608ef2aa
+
+
+
+ISSUES
+
+1) with genesis hash:
+
+cardano-cli print-genesis-hash --genesis-json ../shelley-config/shelley_testnet-genesis.json
+Error while reading genesis file at: "../shelley-config/shelley_testnet-genesis.json" Error: GenesisDataParseError "(line 2, column 24):\nunexpected \".\"\nexpecting white space, \",\" or \"}\""
+
+2) cardano-cli shelley block info
+Usage: cardano-cli shelley block info --block-id STRING [--host-addr HOST-NAME]
+                                      [--port PORT]
+----->  Get the node's pool id ???
+
+
+3) query ledger-state KNOWN issue
+
+cardano-cli shelley query ledger-state --testnet-magic 42
+
+TYPO --> beteen
+
+Verion mismatch beteen node and consensus, so dumping this as generic CBOR.
+
+86  # list(6)
+   82  # list(2)
+      1a b8 d5 56 36  # int(3100988982)
+      1b 00 76 af 02 11 81 69 2c  # int(33406470670346540)
+
+
+
+4) Does not work - looks like it is not implemented - can't find it in code for shelley CLI (present only for Byron CLI)
+
+Example:
+cardano-cli issue-utxo-expenditure --shelley-formats --testnet-magic 42 --tx output.raw --wallet-key 1/payment.skey --txin "122c1e319ef6a086ebfd8e991a028d429cc69d0f221c09560e2b3848608ef2aa,1" --txout 008f2ffef8be284148c35f8449f8fc9e78210c954392fc229c49d9645f426404550fec8d005bf4fca304a359c40780a90eabc5df9d2902eb24:200000000
+option --txin: cannot parse value `122c1e319ef6a086ebfd8e991a028d429cc69d0f221c09560e2b3848608ef2aa,1'
+
+Usage: cardano-cli issue-utxo-expenditure (--mainnet | --testnet-magic INT)
+                                          (--byron-legacy-formats |
+                                            --byron-formats | --shelley-formats)
+                                          --tx FILEPATH --wallet-key FILEPATH
+                                          --txin (TXID,INDEX)
+                                          --txout ADDR:LOVELACE
+  Write a file with a signed transaction, spending normal UTxO.

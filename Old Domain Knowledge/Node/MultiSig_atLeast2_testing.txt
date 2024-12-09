@@ -1,0 +1,564 @@
+cardano-node run --topology shelley_qa/shelley_qa-topology.json \
+--database-path shelley_qa/db \
+--socket-path shelley_qa/node.socket \
+--config shelley_qa/shelley_qa-config.json
+
+
+To generate a payment key pair:
+
+cardano-cli shelley address key-gen \
+--verification-key-file payment.vkey \
+--signing-key-file payment.skey
+
+To generate a stake key pair :
+
+cardano-cli shelley stake-address key-gen \
+--verification-key-file stake.vkey \
+--signing-key-file stake.skey
+
+
+Payment address
+
+cardano-cli shelley address build \
+--payment-verification-key-file payment.vkey \
+--stake-verification-key-file stake.vkey \
+--out-file payment.addr \
+--testnet-magic 3
+
+Stake address:
+
+cardano-cli shelley stake-address build \
+--stake-verification-key-file stake.vkey \
+--out-file stake.addr \
+--testnet-magic 3
+
+
+export CARDANO_NODE_SOCKET_PATH=/home/artur/Projects/multisig/cardano-node/shelley_qa/node.socket
+
+cardano-cli shelley query utxo \
+--address $(cat payment.addr) \
+--testnet-magic 3
+
+
+FAUCET:
+
+curl -v -XPOST "https://faucet.shelley-qa.dev.cardano.org/send-money/addr_test1qrph78mdjjnnc886v9vr8y2qte9377lwfpyueuv69zlf80nxm353cnt6sv4af6zhy5hzaxj98lajadaxjskllntc4gdqjx0q4d?apiKey=Xk4cN5mwkWh8NhO6O3bf41q4SEZjwY2g"
+
+{"success":true,"amount":1000000000000,"fee":168625,"txid":"bc0fdfbf23b0fd369d06c9699bf8c12049131114c5e881fc242f35dac3da0a36"}
+
+
+
+cardano-cli shelley query utxo --address $(cat payment.addr) --testnet-magic 3
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+bc0fdfbf23b0fd369d06c9699bf8c12049131114c5e881fc242f35dac3da0a36     1     1000000000000
+
+
+Generate Payment Keys 2 and 3
+
+key pair 2:
+
+cardano-cli shelley address key-gen \
+--verification-key-file payment2.vkey \
+--signing-key-file payment2.skey
+
+
+
+Stake address 2:
+
+cardano-cli shelley stake-address key-gen \
+--verification-key-file stake2.vkey \
+--signing-key-file stake2.skey
+
+Payment address
+
+cardano-cli shelley address build \
+--payment-verification-key-file payment2.vkey \
+--stake-verification-key-file stake2.vkey \
+--out-file payment2.addr \
+--testnet-magic 3
+
+key pair 3:
+
+cardano-cli shelley address key-gen \
+--verification-key-file payment3.vkey \
+--signing-key-file payment3.skey
+
+
+Step 1 - Create multi-signature script
+
+cardano-cli -- shelley transaction build-multisig --atleast \
+  --required 2 \
+  --payment-verification-key-file payment.vkey \
+  --payment-verification-key-file payment2.vkey \
+  --payment-verification-key-file payment3.vkey \
+  --out-file atLeast2MultiSigScript
+
+
+  cat atLeast2MultiSigScript
+  {
+      "atLeast": {
+          "list": [
+              "c37f1f6d94a73c1cfa61583391405e4b1f7bee4849ccf19a28be93be",
+              "9da1c9cabbd4f7b224e9a83ff9fca5ba984a7368460a47c3253f1ef0",
+              "13e8d8a892a85f96a298383349f432da339321c3a843073ac6202a1f"
+          ],
+          "required": 2
+      }
+  }
+
+
+Step 2 - Create multi-signature address
+
+cardano-cli shelley address build-multisig \
+  --script-file atLeast2MultiSigScript \
+  --testnet-magic 3 \
+  --out-file script_atLeast2.addr
+
+
+
+TTL:
+
+  cardano-cli shelley query tip --testnet-magic 3
+  {
+      "blockNo": 72472,
+      "headerHash": "5c72e865d75f23081f0966dc336895ce4353778cc1ab979ad629c1ab7c3c64ab",
+      "slotNo": 1450125
+  }
+
+
+
+Step 3 - Construct and submit a tx to the multi-signature address
+
+cardano-cli shelley query utxo --address $(cat payment.addr) --testnet-magic 3
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+f8e5fa3d8243a5b6e7f0273d17a27bd4c42d9f9eaf36cb13deed7d374ceb30af     1      999900000000
+
+Construct the tx body:
+
+cardano-cli shelley transaction build-raw \
+--tx-in f8e5fa3d8243a5b6e7f0273d17a27bd4c42d9f9eaf36cb13deed7d374ceb30af#1 \
+--tx-out $(cat script_atLeast2.addr)+99000000 \
+--tx-out $(cat payment.addr)+999800000000 \
+--ttl 2450125 \
+--fee 1000000 \
+--out-file tx.raw
+
+Create the utxo witness:
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file tx.raw \
+  --signing-key-file payment.skey \
+  --testnet-magic 3 \
+  --out-file utxoWitness
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file tx.raw \
+  --witness-file utxoWitness \
+  --out-file atLest2WitnessesTx
+
+
+Submit the transaction
+  cardano-cli shelley transaction submit \
+  --tx-file atLest2WitnessesTx \
+  --testnet-magic 3
+
+
+  cardano-cli shelley query utxo --address $(cat script_atLeast2.addr) --testnet-magic 3
+                             TxHash                                 TxIx        Lovelace
+  ----------------------------------------------------------------------------------------
+  15b8784426b927073047bac4cce0a4571068ec16528512d02281bc6bcabf631d     0          99000000
+
+
+
+Sending ada from a script address
+
+
+Case 1:
+
+Keys 1 and 2
+
+Step 1 - Construct the tx body
+
+cardano-cli shelley transaction build-raw \
+--ttl 2450125 \
+--fee 1000000 \
+--tx-in 15b8784426b927073047bac4cce0a4571068ec16528512d02281bc6bcabf631d#0 \
+--tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+--tx-out $(cat script_atLeast2.addr)+97000000 \
+--out-file spendAtLeast2ScriptTxBodyC1
+
+Step 2 - Construct the required witnesses
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC1 \
+  --script-file atLeast2MultiSigScript \
+  --testnet-magic 3 \
+  --out-file scriptAtLeast2WitnessC1
+
+
+  cardano-cli -- shelley transaction witness \
+    --tx-body-file spendAtLeast2ScriptTxBodyC1 \
+    --signing-key-file payment.skey \
+    --testnet-magic 3 \
+    --out-file key1witness
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC1 \
+  --signing-key-file payment2.skey \
+  --testnet-magic 3 \
+  --out-file key2witness
+
+Step 3 - Construct & submit the transaction
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC1 \
+  --witness-file scriptAtLeast2WitnessC1 \
+  --witness-file key1witness \
+  --witness-file key2witness \
+  --out-file spendAtLeast2MultiSig
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file spendAtLeast2MultiSig \
+  --testnet-magic 3
+
+
+  cardano-cli shelley query utxo --address $(cat script_atLeast2.addr) --testnet-magic 3
+                             TxHash                                 TxIx        Lovelace
+  ----------------------------------------------------------------------------------------
+  90b895c67d95c6d3ebf2b3128ab9e7b893f680acfbc2fdd21cfa1ef91e54f45f     1          97000000
+
+  ========================================================================================
+
+  Case 2:
+
+  Keys 1 and 3
+
+  Step 1 - Construct the tx body
+
+  cardano-cli shelley transaction build-raw \
+  --ttl 2450125 \
+  --fee 1000000 \
+  --tx-in 90b895c67d95c6d3ebf2b3128ab9e7b893f680acfbc2fdd21cfa1ef91e54f45f#1 \
+  --tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+  --tx-out $(cat script_atLeast2.addr)+95000000 \
+  --out-file spendAtLeast2ScriptTxBodyC2
+
+  Step 2 - Construct the required witnesses
+
+  cardano-cli -- shelley transaction witness \
+    --tx-body-file spendAtLeast2ScriptTxBodyC2 \
+    --script-file atLeast2MultiSigScript \
+    --testnet-magic 3 \
+    --out-file scriptAtLeast2WitnessC2
+
+
+    cardano-cli -- shelley transaction witness \
+      --tx-body-file spendAtLeast2ScriptTxBodyC2 \
+      --signing-key-file payment.skey \
+      --testnet-magic 3 \
+      --out-file key1witness
+
+  cardano-cli -- shelley transaction witness \
+    --tx-body-file spendAtLeast2ScriptTxBodyC2 \
+    --signing-key-file payment3.skey \
+    --testnet-magic 3 \
+    --out-file key3witness
+
+  Step 3 - Construct & submit the transaction
+
+  cardano-cli shelley transaction sign-witness \
+    --tx-body-file spendAtLeast2ScriptTxBodyC2 \
+    --witness-file scriptAtLeast2WitnessC2 \
+    --witness-file key1witness \
+    --witness-file key3witness \
+    --out-file spendAtLeast2MultiSigC2
+
+
+    cardano-cli shelley transaction submit \
+    --tx-file spendAtLeast2MultiSigC2 \
+    --testnet-magic 3
+
+
+    cardano-cli shelley query utxo --address $(cat script_atLeast2.addr) --testnet-magic 3
+                               TxHash                                 TxIx        Lovelace
+    ----------------------------------------------------------------------------------------
+    6189f3c332ed09c774e665d760b01128681b145ba51c834d1a1ad45dbed7a554     1          95000000
+
+
+    =============================================================================================
+
+
+    Case 3:
+
+    Keys 2 and 3
+
+    Step 1 - Construct the tx body
+
+    cardano-cli shelley transaction build-raw \
+    --ttl 2450125 \
+    --fee 1000000 \
+    --tx-in 6189f3c332ed09c774e665d760b01128681b145ba51c834d1a1ad45dbed7a554#1 \
+    --tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+    --tx-out $(cat script_atLeast2.addr)+93000000 \
+    --out-file spendAtLeast2ScriptTxBodyC3
+
+    Step 2 - Construct the required witnesses
+
+    cardano-cli -- shelley transaction witness \
+      --tx-body-file spendAtLeast2ScriptTxBodyC3 \
+      --script-file atLeast2MultiSigScript \
+      --testnet-magic 3 \
+      --out-file scriptAtLeast2WitnessC3
+
+
+      cardano-cli -- shelley transaction witness \
+        --tx-body-file spendAtLeast2ScriptTxBodyC3 \
+        --signing-key-file payment2.skey \
+        --testnet-magic 3 \
+        --out-file key2witness
+
+    cardano-cli -- shelley transaction witness \
+      --tx-body-file spendAtLeast2ScriptTxBodyC3 \
+      --signing-key-file payment3.skey \
+      --testnet-magic 3 \
+      --out-file key3witness
+
+    Step 3 - Construct & submit the transaction
+
+    cardano-cli shelley transaction sign-witness \
+      --tx-body-file spendAtLeast2ScriptTxBodyC3 \
+      --witness-file scriptAtLeast2WitnessC3 \
+      --witness-file key2witness \
+      --witness-file key3witness \
+      --out-file spendAtLeast2MultiSigC3
+
+
+      cardano-cli shelley transaction submit \
+      --tx-file spendAtLeast2MultiSigC3 \
+      --testnet-magic 3
+
+
+      cardano-cli shelley query utxo --address $(cat script_atLeast2.addr) --testnet-magic 3
+                                 TxHash                                 TxIx        Lovelace
+      ----------------------------------------------------------------------------------------
+      47830446c4d62c0eb5623d01b48b470457d2d6fd3329a5b63f802f97efbee3c3     1          93000000
+
+
+=================================================================================================
+
+Case 4 : use all 3 Keys
+
+Step 1 - Construct the tx body
+
+cardano-cli shelley transaction build-raw \
+--ttl 2450125 \
+--fee 1000000 \
+--tx-in 47830446c4d62c0eb5623d01b48b470457d2d6fd3329a5b63f802f97efbee3c3#1 \
+--tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+--tx-out $(cat script_atLeast2.addr)+91000000 \
+--out-file spendAtLeast2ScriptTxBodyC4
+
+Step 2 - Construct the required witnesses
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC4 \
+  --script-file atLeast2MultiSigScript \
+  --testnet-magic 3 \
+  --out-file scriptAtLeast2WitnessC4
+
+  cardano-cli -- shelley transaction witness \
+    --tx-body-file spendAtLeast2ScriptTxBodyC4 \
+    --signing-key-file payment.skey \
+    --testnet-magic 3 \
+    --out-file key1witness
+
+  cardano-cli -- shelley transaction witness \
+    --tx-body-file spendAtLeast2ScriptTxBodyC4 \
+    --signing-key-file payment2.skey \
+    --testnet-magic 3 \
+    --out-file key2witness
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC4 \
+  --signing-key-file payment3.skey \
+  --testnet-magic 3 \
+  --out-file key3witness
+
+Step 3 - Construct & submit the transaction
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC4 \
+  --witness-file scriptAtLeast2WitnessC4 \
+  --witness-file key1witness \
+  --witness-file key2witness \
+  --witness-file key3witness \
+  --out-file spendAtLeast2MultiSigC4
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file spendAtLeast2MultiSigC4 \
+  --testnet-magic 3
+
+
+  cardano-cli shelley query utxo --address $(cat script_atLeast2.addr) --testnet-magic 3
+                             TxHash                                 TxIx        Lovelace
+  ----------------------------------------------------------------------------------------
+  d50d4b04ee5a45d5b7ef88ff3ff623bc9766a83575cb1d3bb316536348fe87d8     1          91000000
+
+  ==========================================================================================
+
+Case 5 : use only 1 Key
+
+
+
+cardano-cli shelley transaction build-raw \
+--ttl 2450125 \
+--fee 1000000 \
+--tx-in d50d4b04ee5a45d5b7ef88ff3ff623bc9766a83575cb1d3bb316536348fe87d8#1 \
+--tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+--tx-out $(cat script_atLeast2.addr)+89000000 \
+--out-file spendAtLeast2ScriptTxBodyC5
+
+Step 2 - Construct the required witnesses
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC5 \
+  --script-file atLeast2MultiSigScript \
+  --testnet-magic 3 \
+  --out-file scriptAtLeast2WitnessC5
+
+  cardano-cli -- shelley transaction witness \
+    --tx-body-file spendAtLeast2ScriptTxBodyC5 \
+    --signing-key-file payment.skey \
+    --testnet-magic 3 \
+    --out-file key1witness
+
+
+Step 3 - Construct & submit the transaction
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC5 \
+  --witness-file scriptAtLeast2WitnessC5 \
+  --witness-file key1witness \
+  --out-file spendAtLeast2MultiSigC5
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file spendAtLeast2MultiSigC5 \
+  --testnet-magic 3
+
+  artur@artur-desktop:~/Projects/multisig/cardano-node/keys$   cardano-cli shelley transaction submit \
+>   --tx-file spendAtLeast2MultiSigC5 \
+>   --testnet-magic 3
+Error while submitting tx: ApplyTxError [LedgerFailure (UtxowFailure (ScriptWitnessNotValidatingUTXOW (fromList [ScriptHash "cc914da95d27a10d00d8d58ae62766b283a77d87b553ef1692efde9a"])))]
+
+==========================================================================================
+
+Case 6 : use 2 valid keys (that belong to the list) and 1 that does not belong to the List
+
+cardano-cli shelley transaction build-raw \
+--ttl 2450125 \
+--fee 1000000 \
+--tx-in d50d4b04ee5a45d5b7ef88ff3ff623bc9766a83575cb1d3bb316536348fe87d8#1 \
+--tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+--tx-out $(cat script_atLeast2.addr)+89000000 \
+--out-file spendAtLeast2ScriptTxBodyC6
+
+Step 2 - Construct the required witnesses
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC6 \
+  --script-file atLeast2MultiSigScript \
+  --testnet-magic 3 \
+  --out-file scriptAtLeast2WitnessC6
+
+  cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC6 \
+  --signing-key-file payment.skey \
+  --testnet-magic 3 \
+  --out-file key1witness
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC6 \
+  --signing-key-file payment2.skey \
+  --testnet-magic 3 \
+  --out-file key2witness
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC6 \
+  --signing-key-file payment4.skey \
+  --testnet-magic 3 \
+  --out-file key4witness
+
+Step 3 - Construct & submit the transaction
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC6 \
+  --witness-file scriptAtLeast2WitnessC6 \
+  --witness-file key1witness \
+  --witness-file key2witness \
+  --witness-file key4witness \
+  --out-file spendAtLeast2MultiSigC6
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file spendAtLeast2MultiSigC6 \
+  --testnet-magic 3
+
+
+cardano-cli shelley query utxo --address $(cat script_atLeast2.addr) --testnet-magic 3
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+01694a599139ea131e86d0ff52def632e2975e175324598c00844ba0886161c6     1          89000000
+
+===============================================================================
+
+
+Case 7: Use one valid and one invalid key
+
+cardano-cli shelley transaction build-raw \
+--ttl 2450125 \
+--fee 1000000 \
+--tx-in 01694a599139ea131e86d0ff52def632e2975e175324598c00844ba0886161c6#1 \
+--tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+--tx-out $(cat script_atLeast2.addr)+87000000 \
+--out-file spendAtLeast2ScriptTxBodyC7
+
+Step 2 - Construct the required witnesses
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC7 \
+  --script-file atLeast2MultiSigScript \
+  --testnet-magic 3 \
+  --out-file scriptAtLeast2WitnessC7
+
+  cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC7 \
+  --signing-key-file payment.skey \
+  --testnet-magic 3 \
+  --out-file key1witness
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC7 \
+  --signing-key-file payment4.skey \
+  --testnet-magic 3 \
+  --out-file key4witness
+
+Step 3 - Construct & submit the transaction
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file spendAtLeast2ScriptTxBodyC7 \
+  --witness-file scriptAtLeast2WitnessC7 \
+  --witness-file key1witness \
+  --witness-file key4witness \
+  --out-file spendAtLeast2MultiSigC7
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file spendAtLeast2MultiSigC7 \
+  --testnet-magic 3
+
+  Error while submitting tx: ApplyTxError [LedgerFailure (UtxowFailure (ScriptWitnessNotValidatingUTXOW (fromList [ScriptHash "cc914da95d27a10d00d8d58ae62766b283a77d87b553ef1692efde9a"])))]

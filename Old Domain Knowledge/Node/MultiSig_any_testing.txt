@@ -1,0 +1,656 @@
+cardano-node run --topology shelley_qa/shelley_qa-topology.json \
+--database-path shelley_qa/db \
+--socket-path shelley_qa/node.socket \
+--config shelley_qa/shelley_qa-config.json
+
+
+PGPASSFILE=config/pgpass-shelley-qa-testnet db-sync-node/bin/cardano-db-sync \
+--config config/shelley-qa-config.yaml \
+--socket-path ../cardano-node/shelley_qa/node.socket \
+--schema-dir schema/
+
+[artur-de:cardano.node.ChainDB:Notice:33] [2020-09-09 10:26:00.37 UTC] Chain extended, new tip: 990cc684252eedd183a6f8bdc0c64a7dc190ac2395254d66bbf7d3dcac1ea3ed at slot 1964280
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] before next, messages elided = 26916062442226
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] Scheduled a garbage collection for 1963629
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.07 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+[artur-de:cardano.node.ChainDB:Debug:144] [2020-09-09 10:26:03.08 UTC] TraceImmDBEvent
+
+
+[db-sync-node:Info:36] [2020-09-09 10:27:11.82 UTC] insertShelleyBlock: epoch 203, slot 1455000, block 72721, hash c0582c7a5c1cb358b58d275a0a1899577ada7e15a6bfe15ff5bbd5f8de9b7f88
+[db-sync-node:Error:36] [2020-09-09 10:27:11.96 UTC] insertCertificate: Unhandled DCertGenesis certificate
+[db-sync-node:Info:36] [2020-09-09 10:27:12.05 UTC] insertShelleyBlock: epoch 204, slot 1460000, block 72959, hash 4b37eb4ef913c5f82f659b2c4a2d09a9f546af1c4930a197f0843af10c55894c
+
+/home/artur/Projects/SMASH/smash/dist-newstyle/build/x86_64-linux/ghc-8.6.5/smash-1.1.0/x/smash-exe/build/smash-exe
+
+
+SMASHPGPASSFILE=./config/pgpass smash-exe -- run-app-with-db-sync --config ../cardano-node/shelley_qa/shelley_qa-tesnet.json --socket-path ../cardano-node/shelley_qa/node.socket --schema-dir schema/
+
+
+smash-node:Info:46] [2020-09-09 11:00:46.67 UTC] Inserting pool register with pool id: cbf68681bbd1758480391706a9717fad6cecd668d3903552364a5d9f
+[smash-node:Info:46] [2020-09-09 11:00:46.67 UTC] Inserting metadata.
+[smash-node:Info:46] [2020-09-09 11:00:46.69 UTC] Request: https://explorer.shelley-qa.dev.cardano.org/p/2.json
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] Response: 200
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] Inserting pool data with hash: 42898fe0ec6333556b78a4ba8a82301250e969845ae619f8fea2dbface649cc6
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] {"name": "IOG 2", "description": "IOG Testnet Pool", "ticker": "IOG2", "homepage": "https://iohk.io"}
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] Metadata inserted.
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] Inserted pool register.
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] insertCertificate: DCertDeleg
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] insertShelleyBlock pool info: slot 4340, block 875
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] insertShelleyBlock pool info: slot 4360, block 876
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] insertCertificate: DCertDeleg
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] insertCertificate: DCertDeleg
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] Inserting pool register with pool id: 8517fa7042cb9494818861c53c87780b4975c0bd402e3ed85168aa66
+[smash-node:Info:46] [2020-09-09 11:00:46.95 UTC] Inserting metadata.
+[smash-node:Info:46] [2020-09-09 11:00:46.97 UTC] Request: https://explorer.shelley-qa.dev.cardano.org/p/1.json
+[smash-node:Info:46] [2020-09-09 11:00:47.22 UTC] Response: 200
+[smash-node:Info:46] [2020-09-09 11:00:47.22 UTC] Inserting pool data with hash: 4b2221a0ac0b0197308323080ba97e3e453f8625393d30f96eebe0fca4cb7334
+[smash-node:Info:46] [2020-09-09 11:00:47.23 UTC] {"name": "IOG 1", "description": "IOG Testnet Pool", "ticker": "IOG1", "homepage": "https://iohk.io"}
+[smash-node:Info:46] [2020-09-09 11:00:47.23 UTC] Metadata inserted.
+[smash-node:Info:46] [2020-09-09 11:00:47.23 UTC] Inserted pool register.
+[smash-node:Info:46] [2020-09-09 11:00:47.23 UTC] insertCertificate: DCertDeleg
+[smash-node:Info:46] [2020-09-09 11:00:47.23 UTC] insertShelleyBlock pool info: slot 4380, block 877
+[smash-node:Info:46] [2020-09-09 11:00:47.23 UTC] insertShelleyBlock pool info: slot 4400, block 878
+[smash-node:Info:46] [2020-09-09 11:00:47.23 UTC] insertShelleyBlock pool info: slot 4420, block 879
+[smash-node:Info:46] [2020-09-09 11:00:47.24 UTC] insertShelleyBlock pool info: slot 4440, block 880
+[smash-node:Info:46] [2020-09-09 11:00:47.24 UTC] insertShelleyBlock pool info: slot 4460, block 881
+[smash-node:Info:46] [2020-09-09 11:00:47.24 UTC] insertShelleyBlock pool info: slot 4480, block 882
+[smash-node:Info:46] [2020-09-09 11:00:47.24 UTC] insertShelleyBlock pool info: slot 4500, block 883
+[smash-node:Info:46] [2020-09-09 11:00:47.24 UTC] insertShelleyBlock pool info: slot 4520, block 884
+[smash-node:Info:46] [2020-09-09 11:00:47.24 UTC] insertShelleyBlock pool info: slot 4540, block 885
+[smash-node:Info:46] [2020-09-09 11:00:47.24 UTC] insertShelleyBlock pool info: slot 4560, block 886
+[smash-node:Info:46] [2020-09-09 11:00:47.25 UTC] insertShelleyBlock pool i
+
+
+You can insert EMPTY data ???
+
+
+fetchLoop: 1 runnable, 0 pending
+[smash-node.fetch:Info:45] [2020-09-09 11:53:37.28 UTC] Pools without offline metadata: 1
+[smash-node.fetch:Info:45] [2020-09-09 11:53:37.30 UTC] Request: https://raw.githubusercontent.com/aaa/a/master/a.json
+[smash-node.fetch:Warning:45] [2020-09-09 11:53:37.70 UTC] HTTP Response : 404
+[smash-node.fetch:Info:45] [2020-09-09 11:53:37.71 UTC] fetchLoop: 0 runnable, 1 pending
+[smash-node.fetch:Info:45] [2020-09-09 11:53:57.73 UTC] fetchLoop: 0 runnable, 1 pending
+[smash-node:Info:44] [2020-09-09 11:54:00.39 UTC] insertShelleyBlock pool info: slot 1969560, block 98505
+
+
+
+[db-sync-node:Error:36] [2020-09-10 11:34:26.63 UTC] insertCertificate: Unhandled DCertGenesis certificate
+
+
+
+
+curl -v http://localhost:3100/api/v1/errors
+*   Trying 127.0.0.1...
+* TCP_NODELAY set
+* Connected to localhost (127.0.0.1) port 3100 (#0)
+> GET /api/v1/errors HTTP/1.1
+> Host: localhost:3100
+> User-Agent: curl/7.58.0
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Transfer-Encoding: chunked
+< Date: Wed, 09 Sep 2020 11:54:31 GMT
+< Server: Warp/3.3.13
+< Content-Type: application/json;charset=utf-8
+<
+* Connection #0 to host localhost left intact
+[{"time":"09.09.2020. 11:53:34","retryCount":0,"poolHash":"1840b5ee910b9a160c351bdc108e3099546e6b87895b4de1c88c54d4d2ee500f","cause":"HTTP Response : 404","poolId":"0f82d55b5a5b8a1f103e03b59bd2754cd900efed3e0d62137c6edcb9","utcTime":"1599652414.221148s"},{"time":"09.09.2020. 11:53:37","retryCount":0,"poolHash":"1840b5ee910b9a160c351bdc108e3099546e6b87895b4de1c88c54d4d2ee500f","cause":"HTTP Response : 404","poolId":"0f82d55b5a5b8a1f103e03b59bd2754cd900efed3e0d62137c6edcb9","utcTime":"1599652417.697234s"}]
+
+
+http://localhost:3100/api/v1/errors?poolId=1840b5ee910b9a160c351bdc108e3099546e6b87895b4de1c88c54d4d2ee500f
+
+
+SMASHPGPASSFILE=config/pgpass smash-exe -- insert-pool --metadata test_pool123456789.json --poolId "062693863e0bcf9f619238f020741381d4d3748aae6faf1c012e80e7" --poolhash "cbdfc4f21feb0a414b2b9471fa56b0ebd312825e63db776d68cc3fa0ca1f5a2f"
+Inserting pool metadata!
+Inserting pool! test_pool123456789.json PoolId {getPoolId = "062693863e0bcf9f619238f020741381d4d3748aae6faf1c012e80e7"}
+smash-exe: test_pool123456789.json: openFile: does not exist (No such file or directory)
+
+postgres@artur-desktop:~/Projects/SMASH/smash$ SMASHPGPASSFILE=config/pgpass smash-exe -- insert-pool --metadata test_pool.json --poolId "062693863e0bcf9f619238f020741381d4d3748aae6faf1c012e80e7" --poolhash "cbdfc4f21feb0a414b2b9471fa56b0ebd312825e63db776d68cc3fa0ca1f5a2f"
+Inserting pool metadata!
+Inserting pool! test_pool.json PoolId {getPoolId = "062693863e0bcf9f619238f020741381d4d3748aae6faf1c012e80e7"}
+smash-exe: FatalError {fatalErrorMessage = "Error in $: \"ticker\" must have at least 3 and at most 5 characters, but it has 7 characters."}
+
+
+To generate a payment key pair:
+
+cardano-cli shelley address key-gen \
+--verification-key-file payment.vkey \
+--signing-key-file payment.skey
+
+To generate a stake key pair :
+
+cardano-cli shelley stake-address key-gen \
+--verification-key-file stake.vkey \
+--signing-key-file stake.skey
+
+Payment address
+
+cardano-cli shelley address build \
+--payment-verification-key-file payment.vkey \
+--stake-verification-key-file stake.vkey \
+--out-file payment.addr \
+--testnet-magic 3
+
+
+Stake address:
+
+cardano-cli shelley stake-address build \
+--stake-verification-key-file stake.vkey \
+--out-file stake.addr \
+--testnet-magic 3
+
+
+export CARDANO_NODE_SOCKET_PATH=/home/artur/Projects/multisig/cardano-node/shelley_qa/node.socket
+
+cardano-cli shelley query utxo \
+--address $(cat payment.addr) \
+--testnet-magic 3
+
+
+FAUCET:
+
+curl -v -XPOST "https://faucet.shelley-qa.dev.cardano.org/send-money/addr_test1qrph78mdjjnnc886v9vr8y2qte9377lwfpyueuv69zlf80nxm353cnt6sv4af6zhy5hzaxj98lajadaxjskllntc4gdqjx0q4d?apiKey=Xk4cN5mwkWh8NhO6O3bf41q4SEZjwY2g"
+
+{"success":true,"amount":1000000000000,"fee":168625,"txid":"bc0fdfbf23b0fd369d06c9699bf8c12049131114c5e881fc242f35dac3da0a36"}
+
+
+
+cardano-cli shelley query utxo --address $(cat payment.addr) --testnet-magic 3
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+bc0fdfbf23b0fd369d06c9699bf8c12049131114c5e881fc242f35dac3da0a36     1     1000000000000
+
+
+Generate Payment Keys 2 and 3
+
+key pair 2:
+
+cardano-cli shelley address key-gen \
+--verification-key-file payment2.vkey \
+--signing-key-file payment2.skey
+
+
+
+Stake address 2:
+
+cardano-cli shelley stake-address key-gen \
+--verification-key-file stake2.vkey \
+--signing-key-file stake2.skey
+
+Payment address
+
+cardano-cli shelley address build \
+--payment-verification-key-file payment2.vkey \
+--stake-verification-key-file stake2.vkey \
+--out-file payment2.addr \
+--testnet-magic 3
+
+key pair 3:
+
+cardano-cli shelley address key-gen \
+--verification-key-file payment3.vkey \
+--signing-key-file payment3.skey
+
+
+Step 1 - Create multi-signature script
+
+cardano-cli -- shelley transaction build-multisig --any \
+  --payment-verification-key-file payment.vkey \
+  --payment-verification-key-file payment2.vkey \
+  --payment-verification-key-file payment3.vkey \
+  --out-file anyMultiSigScript
+
+cat anyMultiSigScript
+{
+    "any": [
+        "c37f1f6d94a73c1cfa61583391405e4b1f7bee4849ccf19a28be93be",
+        "9da1c9cabbd4f7b224e9a83ff9fca5ba984a7368460a47c3253f1ef0",
+        "13e8d8a892a85f96a298383349f432da339321c3a843073ac6202a1f"
+    ]
+}
+
+
+Step 2 - Create multi-signature address
+
+cardano-cli shelley address build-multisig \
+  --script-file anyMultiSigScript \
+  --testnet-magic 3 \
+  --out-file script_any.addr
+
+
+
+
+  {
+      "decentralisationParam": 1,
+      "eMax": 18,
+      "maxTxSize": 16384,
+      "minFeeA": 44,
+      "minFeeB": 155381,
+      "minUTxOValue": 1000000,
+      "poolDeposit": 500000000,
+      "minPoolCost": 340000000,
+      "keyDeposit": 2000000,
+      "nOpt": 150,
+    },
+    "genDelegs": {
+      "489c900ca42a9e690678f777552f70cabcb49e28ad4126a902e1fbfa": {
+        "delegate": "a38dcd095ad126eac1f64d99ec64c3de63b14e90009f5e4b4e451b86",
+        "vrf": "df85ffa44aed49ef1e9dda28dab48592143668ac0fb1f1df1a8ec6b771223b53"
+      },
+      "fe4a70e2858afa3487ac582eb7f8a9fb2538d186e71263beb497d017": {
+        "delegate": "399752c39cdc628950ec4a62c09482b6ba8d65f79bcd41d7ff620273",
+        "vrf": "64f241c7929da8e8fb5af2b4f7779fbb18e06e6240276fb54efdddda5b7d427b"
+      },
+      "a5f87e4f6eac5fcfcaf18beadf14f4142e7bd26bac9e4951b2918811": {
+        "delegate": "ea6a83bfaba85ebf3dcf4fe9a701c991fabc2e229217734fea6ec5e2",
+        "vrf": "524fb631fd92ae561f09f7631a1c6239dc40f242b5f7bcc3a7840aac6b403643"
+      }
+    },
+    "updateQuorum": 3,
+    "networkId": "Testnet",
+    "initialFunds": {},
+    "maxLovelaceSupply": 45000000000000000,
+    "networkMagic": 3,
+    "epochLength": 7200,
+    "systemStart": "2020-08-17T13:00:00Z",
+    "slotsPerKESPeriod": 129600,
+    "slotLength": 1,
+    "maxKESEvolutions": 62,
+    "securityParam": 36
+  }
+
+
+TTL:
+
+  cardano-cli shelley query tip --testnet-magic 3
+  {
+      "blockNo": 72472,
+      "headerHash": "5c72e865d75f23081f0966dc336895ce4353778cc1ab979ad629c1ab7c3c64ab",
+      "slotNo": 1450125
+  }
+
+
+
+Step 3 - Construct and submit a tx to the multi-signature address
+
+Construct the tx body:
+
+cardano-cli shelley transaction build-raw \
+--tx-in bc0fdfbf23b0fd369d06c9699bf8c12049131114c5e881fc242f35dac3da0a36#1 \
+--tx-out $(cat script_any.addr)+99000000 \
+--tx-out $(cat payment.addr)+999900000000 \
+--ttl 2450125 \
+--fee 1000000 \
+--out-file tx.raw
+
+Create the utxo witness:
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file tx.raw \
+  --signing-key-file payment.skey \
+  --testnet-magic 3 \
+  --out-file utxoWitness
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file tx.raw \
+  --witness-file utxoWitness \
+  --out-file anyWitnessesTx
+
+
+Submit the transaction
+  cardano-cli shelley transaction submit \
+  --tx-file anyWitnessesTx \
+  --testnet-magic 3
+
+
+  cardano-cli shelley query utxo --address $(cat script_any.addr) --testnet-magic 3
+                             TxHash                                 TxIx        Lovelace
+  ----------------------------------------------------------------------------------------
+  f8e5fa3d8243a5b6e7f0273d17a27bd4c42d9f9eaf36cb13deed7d374ceb30af     0          99000000
+
+
+
+Sending ada from a script address 2
+
+
+cardano-cli shelley transaction build-raw \
+--ttl 2450125 \
+--fee 1000000 \
+--tx-in f8e5fa3d8243a5b6e7f0273d17a27bd4c42d9f9eaf36cb13deed7d374ceb30af#0 \
+--tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+18000000 \
+--tx-out $(cat payment.addr)+80000000 \
+--out-file spendAnyScriptTxBody
+
+Step 2 - Construct the required witnesses
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAnyScriptTxBody \
+  --script-file anyMultiSigScript \
+  --testnet-magic 3 \
+  --out-file scriptAnyWitness
+
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAnyScriptTxBody \
+  --signing-key-file payment2.skey \
+  --testnet-magic 3 \
+  --out-file key2witness
+
+Step 3 - Construct & submit the transaction
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file spendAnyScriptTxBody \
+  --witness-file scriptAnyWitness \
+  --witness-file key2witness \
+  --out-file spendAnyMultiSig
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file spendAnyMultiSig \
+  --testnet-magic 3
+
+
+================================================================================
+RECHARGING SCRIPT ADDRESS
+cardano-cli shelley transaction build-raw \
+--tx-in 056387d50e1e43888b31d14687255c1865dc53437264becfee86b8f357b91ada#1 \
+--tx-out $(cat script_any.addr)+79000000 \
+--ttl 2450125 \
+--fee 1000000 \
+--out-file tx2.raw
+
+Create the utxo witness:
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file tx2.raw \
+  --signing-key-file payment.skey \
+  --testnet-magic 3 \
+  --out-file utxo2Witness
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file tx2.raw \
+  --witness-file utxo2Witness \
+  --out-file anyWitnessesTx2
+
+
+Submit the transaction
+  cardano-cli shelley transaction submit \
+  --tx-file anyWitnessesTx2 \
+  --testnet-magic 3
+
+  ========================================================================================
+
+  Sending ada from a script address 3
+
+
+  cardano-cli shelley transaction build-raw \
+  --ttl 2450125 \
+  --fee 1000000 \
+  --tx-in 014664a4287a0b577a9174b83cf1151ab02e6b8604c4ab1489d91fb5ddd07817#0 \
+  --tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+  --tx-out $(cat script_any.addr)+77000000 \
+  --out-file spendAnyScriptTxBody3
+
+  Step 2 - Construct the required witnesses
+
+  cardano-cli -- shelley transaction witness \
+    --tx-body-file spendAnyScriptTxBody3 \
+    --script-file anyMultiSigScript \
+    --testnet-magic 3 \
+    --out-file scriptAnyWitness3
+
+
+  cardano-cli -- shelley transaction witness \
+    --tx-body-file spendAnyScriptTxBody3 \
+    --signing-key-file payment3.skey \
+    --testnet-magic 3 \
+    --out-file key3witness
+
+  Step 3 - Construct & submit the transaction
+
+  cardano-cli shelley transaction sign-witness \
+    --tx-body-file spendAnyScriptTxBody3 \
+    --witness-file scriptAnyWitness3 \
+    --witness-file key3witness \
+    --out-file spendAnyMultiSig3
+
+
+    cardano-cli shelley transaction submit \
+    --tx-file spendAnyMultiSig3 \
+    --testnet-magic 3
+
+    =======================================================================================
+
+    Sending ada from a script address 1
+
+
+    cardano-cli shelley transaction build-raw \
+    --ttl 2450125 \
+    --fee 1000000 \
+    --tx-in 379b461903b06509a8d15c50a8dc5bdabb0cad1c98ef9ca65f544cbad14f841a#1 \
+    --tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+    --tx-out $(cat script_any.addr)+75000000 \
+    --out-file spendAnyScriptTxBody1
+
+    Step 2 - Construct the required witnesses
+
+    cardano-cli -- shelley transaction witness \
+      --tx-body-file spendAnyScriptTxBody1 \
+      --script-file anyMultiSigScript \
+      --testnet-magic 3 \
+      --out-file scriptAnyWitness1
+
+
+    cardano-cli -- shelley transaction witness \
+      --tx-body-file spendAnyScriptTxBody1 \
+      --signing-key-file payment.skey \
+      --testnet-magic 3 \
+      --out-file key1witness
+
+    Step 3 - Construct & submit the transaction
+
+    cardano-cli shelley transaction sign-witness \
+      --tx-body-file spendAnyScriptTxBody1 \
+      --witness-file scriptAnyWitness1 \
+      --witness-file key1witness \
+      --out-file spendAnyMultiSig1
+
+
+      cardano-cli shelley transaction submit \
+      --tx-file spendAnyMultiSig1 \
+      --testnet-magic 3
+
+=======================================================
+
+Case 4: use 2 valid keys
+
+
+cardano-cli shelley query utxo --address $(cat script_any.addr) --testnet-magic 3
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+1fe8dd971bef654cfcf0bd3ff980b97319088bd8c4c94750964f12631f97e9a0     1          75000000
+
+
+cardano-cli shelley transaction build-raw \
+--ttl 2450125 \
+--fee 1000000 \
+--tx-in 1fe8dd971bef654cfcf0bd3ff980b97319088bd8c4c94750964f12631f97e9a0#1 \
+--tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+--tx-out $(cat script_any.addr)+73000000 \
+--out-file spendAnyScriptTxBodyC4
+
+Step 2 - Construct the required witnesses
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAnyScriptTxBodyC4 \
+  --script-file anyMultiSigScript \
+  --testnet-magic 3 \
+  --out-file scriptAnyWitnessC4
+
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAnyScriptTxBodyC4 \
+  --signing-key-file payment.skey \
+  --testnet-magic 3 \
+  --out-file key1witness
+
+
+cardano-cli -- shelley transaction witness \
+    --tx-body-file spendAnyScriptTxBodyC4 \
+    --signing-key-file payment2.skey \
+    --testnet-magic 3 \
+    --out-file key2witness
+
+Step 3 - Construct & submit the transaction
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file spendAnyScriptTxBodyC4 \
+  --witness-file scriptAnyWitnessC4 \
+  --witness-file key1witness \
+  --witness-file key2witness \
+  --out-file spendAnyMultiSigC4
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file spendAnyMultiSigC4 \
+  --testnet-magic 3
+
+  cardano-cli shelley query utxo --address $(cat script_any.addr) --testnet-magic 3
+                             TxHash                                 TxIx        Lovelace
+  ----------------------------------------------------------------------------------------
+  9fec7f012430e283b997b93cada3d48ea7ed48c6464ba6d9b9e96521715fdfd4     1          73000000
+
+
+
+
+  IS this valid RESULT ?
+
+
+
+==========================================================================================
+
+Case 5: use one valid and one invalid key
+
+cardano-cli shelley transaction build-raw \
+--ttl 2450125 \
+--fee 1000000 \
+--tx-in 9fec7f012430e283b997b93cada3d48ea7ed48c6464ba6d9b9e96521715fdfd4#1 \
+--tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+--tx-out $(cat script_any.addr)+71000000 \
+--out-file spendAnyScriptTxBodyC5
+
+Step 2 - Construct the required witnesses
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAnyScriptTxBodyC5 \
+  --script-file anyMultiSigScript \
+  --testnet-magic 3 \
+  --out-file scriptAnyWitnessC5
+
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAnyScriptTxBodyC5 \
+  --signing-key-file payment.skey \
+  --testnet-magic 3 \
+  --out-file key1witness
+
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAnyScriptTxBodyC5 \
+  --signing-key-file payment4.skey \
+  --testnet-magic 3 \
+  --out-file key4witness
+
+Step 3 - Construct & submit the transaction
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file spendAnyScriptTxBodyC5 \
+  --witness-file scriptAnyWitnessC5 \
+  --witness-file key1witness \
+  --witness-file key4witness \
+  --out-file spendAnyMultiSigC5
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file spendAnyMultiSigC5 \
+  --testnet-magic 3
+
+
+  cardano-cli shelley query utxo --address $(cat script_any.addr) --testnet-magic 3
+                             TxHash                                 TxIx        Lovelace
+  ----------------------------------------------------------------------------------------
+  5485c8bc4f002e9aec58e279ca5300679fe04b9fc5ff438cf490b0bb9b5bceb9     1          71000000
+
+
+
+  IS this valid RESULT ?
+
+
+===============================================================================================
+
+Case 6: use invalid key
+
+cardano-cli shelley transaction build-raw \
+--ttl 2450125 \
+--fee 1000000 \
+--tx-in 5485c8bc4f002e9aec58e279ca5300679fe04b9fc5ff438cf490b0bb9b5bceb9#1 \
+--tx-out addr_test1qzw6rjw2h0200v3yax5rl70u5kafsjnndprq537ry5l3auyvhprcgf0w43ugt35vjqkdm6aeuzquc02l47c2ych6445s2u8saq+1000000 \
+--tx-out $(cat script_any.addr)+69000000 \
+--out-file spendAnyScriptTxBodyC6
+
+Step 2 - Construct the required witnesses
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAnyScriptTxBodyC6 \
+  --script-file anyMultiSigScript \
+  --testnet-magic 3 \
+  --out-file scriptAnyWitnessC6
+
+
+cardano-cli -- shelley transaction witness \
+  --tx-body-file spendAnyScriptTxBodyC6 \
+  --signing-key-file payment4.skey \
+  --testnet-magic 3 \
+  --out-file key4witness
+
+Step 3 - Construct & submit the transaction
+
+cardano-cli shelley transaction sign-witness \
+  --tx-body-file spendAnyScriptTxBodyC6 \
+  --witness-file scriptAnyWitnessC6 \
+  --witness-file key4witness \
+  --out-file spendAnyMultiSigC6
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file spendAnyMultiSigC6 \
+  --testnet-magic 3
+
+Error while submitting tx: ApplyTxError [LedgerFailure (UtxowFailure (ScriptWitnessNotValidatingUTXOW (fromList [ScriptHash "40b12e68fb998f9f3a3b28257e4a849c7607007a4d710e38cbeafc9e"])))]

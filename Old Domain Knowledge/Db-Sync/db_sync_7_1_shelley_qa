@@ -1,0 +1,1870 @@
+Node setup for allegra:
+
+git clone https://github.com/input-output-hk/cardano-node
+
+git checkout tags/1.24.1
+
+cabal build all
+
+cp $(find . -name cardano-node -executable -type f) /home/artur/Projects/bin
+cp $(find . -name cardano-cli -executable -type f) /home/artur/Projects/bin
+
+cardano-cli --version
+cardano-cli 1.24.0 - linux-x86_64 - ghc-8.6
+git rev c6c5758aa5991a1c0d821622349f39c12a40e1ad
+
+cardano-node --version
+cardano-node 1.24.0 - linux-x86_64 - ghc-8.6
+git rev c6c5758aa5991a1c0d821622349f39c12a40e1ad
+
+Allegra configs:
+
+artur@artur-desktop:~/Projects/db-sync-7/cardano-node$
+
+mkdir allegra
+
+wget https://hydra.iohk.io/build/5048784/download/1/allegra-config.json
+wget https://hydra.iohk.io/build/5048784/download/1/allegra-byron-genesis.json
+wget https://hydra.iohk.io/build/5048784/download/1/allegra-shelley-genesis.json
+wget https://hydra.iohk.io/build/5048784/download/1/allegra-topology.json
+
+
+cardano-node run --topology allegra/allegra-topology.json \
+--database-path allegra/db \
+--socket-path allegra/node.socket \
+--config allegra/allegra-config.json
+
+cardano-node run --topology mary/mary_qa-topology.json \
+--database-path mary/db \
+--socket-path mary/node.socket \
+--config mary/mary_qa-config.json
+
+
+Set up and run the db-sync node
+
+git clone https://github.com/input-output-hk/cardano-db-sync
+cd cardano-db-sync
+git checkout release/7.1.x
+
+
+nix-build -A cardano-db-sync-extended -o db-sync-node-extended
+
+inside cardano-db-sync/config create files:
+
+pgpass-allegra
+
+with content:
+
+/var/run/postgresql:5432:allegra:*:*
+
+and
+
+allegra-config.yaml
+
+with content:
+
+# Explorer DB Node configuration
+
+NetworkName: allegra
+
+EnableLogMetrics: False
+EnableLogging: True
+
+Protocol: Cardano
+
+# The config file for the node we are connecting to. If this is not the correct
+# config, it will likely lead to db-sync throwing up weird error messages from
+# the consensus layer.
+# The path to the node config file is relative to this config file.
+NodeConfigFile: ../../cardano-node/allegra/allegra-config.json
+
+================================================================================
+
+For mary:
+
+pgpass-mary
+
+with content:
+
+/var/run/postgresql:5432:mary:*:*
+
+and
+
+mary-config.yaml
+
+with content:
+
+# Explorer DB Node configuration
+
+NetworkName: mary_qa
+
+EnableLogMetrics: False
+EnableLogging: True
+
+# The config file for the node we are connecting to. If this is not the correct
+# config, it will likely lead to db-sync throwing up weird error messages from
+# the consensus layer.
+# The path to the node config file is relative to this config file.
+NodeConfigFile: ../../cardano-node/mary/mary_qa-config.json
+
+
+
+PGPASSFILE=config/pgpass-mary scripts/postgresql-setup.sh --createdb
+
+PGPASSFILE=config/pgpass-mary db-sync-node-extended/bin/cardano-db-sync-extended \
+    --config config/mary-config.yaml \
+    --socket-path ../cardano-node/mary/node.socket \
+    --state-dir ledger-state/mary \
+    --schema-dir schema/
+
+================================================================================
+
+Clear db if needed:
+
+artur@artur-desktop$ sudo -su postgres
+
+psql -c "\l"
+
+postgres@artur-desktop:$ psql -c "DROP DATABASE allegra"
+
+Run db-sync:
+
+PGPASSFILE=config/pgpass-allegra scripts/postgresql-setup.sh --createdb
+
+PGPASSFILE=config/pgpass-allegra db-sync-node-extended/bin/cardano-db-sync-extended \
+    --config config/allegra-config.yaml \
+    --socket-path ../cardano-node/allegra/node.socket \
+    --state-dir ledger-state/allegra \
+    --schema-dir schema/
+
+
+
+==================================================================================================================================
+1 - INITIAL SETUP OF KEYS
+
+export CARDANO_NODE_SOCKET_PATH=/home/artur/Projects/db-sync-7/cardano-node/allegra/node.socket
+
+cardano-cli query tip --testnet-magic 3
+{
+    "blockNo": 7084,
+    "headerHash": "8c7a6d1157df45f19c5d003ef6ddf90998da60bd27817fead644def2eafdf1db",
+    "slotNo": 135340
+}
+
+Create keys and payment/stake address:
+
+"Normal" Payment key pair
+
+cardano-cli address key-gen \
+--verification-key-file payment.vkey \
+--signing-key-file payment.skey
+
+
+"Extended" Payment key pair
+
+cardano-cli address key-gen --extended-key \
+--verification-key-file extended-payment.vkey \
+--signing-key-file extended-payment.skey
+
+"Byron" Payment key pair
+
+cardano-cli address key-gen --byron-key \
+--verification-key-file byron-payment.vkey \
+--signing-key-file byron-payment.skey
+
+Stake key pair 1
+
+cardano-cli stake-address key-gen \
+--verification-key-file stake.vkey \
+--signing-key-file stake.skey
+
+Stake key pair 2
+
+cardano-cli stake-address key-gen \
+--verification-key-file stake2.vkey \
+--signing-key-file stake2.skey
+
+Stake key pair 3
+
+cardano-cli stake-address key-gen \
+--verification-key-file stake3.vkey \
+--signing-key-file stake3.skey
+
+
+"Normal" Payment address
+
+cardano-cli address build \
+--payment-verification-key-file payment.vkey \
+--stake-verification-key-file stake.vkey \
+--out-file payment.addr \
+--testnet-magic 3
+
+
+"Extended" Payment address
+
+cardano-cli address build \
+--payment-verification-key-file extended-payment.vkey \
+--stake-verification-key-file stake2.vkey \
+--out-file extended-payment.addr \
+--testnet-magic 3
+
+
+"Byron" Payment address
+
+cardano-cli address build \
+--payment-verification-key-file byron-payment.vkey \
+--stake-verification-key-file stake3.vkey \
+--out-file byron-payment.addr \
+--testnet-magic 3
+
+Stake address 1
+
+cardano-cli stake-address build \
+--stake-verification-key-file stake.vkey \
+--out-file stake.addr \
+--testnet-magic 3
+
+Stake address 2
+
+cardano-cli stake-address build \
+--stake-verification-key-file stake2.vkey \
+--out-file stake2.addr \
+--testnet-magic 3
+
+
+Stake address 3
+
+cardano-cli stake-address build \
+--stake-verification-key-file stake3.vkey \
+--out-file stake3.addr \
+--testnet-magic 3
+
+cat payment.addr
+addr_test1qqy6u7fhdgtzmy2wzcmsrx4n85ktr2qy839drttcw7axsmmarum8g5vsmm46aesusyrsnyzvmvwc3j6uhvzndfltk4nqf5uyre
+
+cat extended-payment.addr
+addr_test1qqze4pl56423vt8845q8whunar3mz07q7tnpssrfxdypt9unqe5tzgcpuuds8yglxf6c3haq3x7v3a2x8vy6473srt9ql9uqug
+
+cat byron-payment.addr
+FHnt4NL7yPYHKGAni2ABZd3WzLoFbeDoi6P5tJ4TLSMQ1yPes1reBgaFYJMQGq2
+
+cat stake.addr
+stake_test1up737dn52xgda6awucwgzpcfjpxdk8vgedwtkpfk5l4m2escxyxnr
+
+cat stake2.addr
+stake_test1uzfsv693yvq7wxcrjy0nyavgm7sgn0xg74rrkzd2lgcp4jslrh67p
+
+cat stake3.addr
+stake_test1upxe9e6w62vx80zk9rq9f9vcl7m268eaknpu4zflaph9r6gjxf7gy
+
+Request funds from faucet:
+
+curl -v -XPOST "https://faucet.shelley-qa.dev.cardano.org/send-money/$(cat payment.addr)?apiKey=Xk4cN5mwkWh8NhO6O3bf41q4SEZjwY2g"
+
+POST /send-money/addr_test1qqy6u7fhdgtzmy2wzcmsrx4n85ktr2qy839drttcw7axsmmarum8g5vsmm46aesusyrsnyzvmvwc3j6uhvzndfltk4nqf5uyre?apiKey=Xk4cN5mwkWh8NhO6O3bf41q4SEZjwY2g
+
+{"success":true,"amount":1000000000000,"fee":168889,"txid":"767ce99448762d02b16b86c2e6d68c92e6975eea28922936384f541caea5e225"}
+
+
+Wallet:
+curl -v -XPOST "https://faucet.shelley-qa.dev.cardano.org/send-money/addr_test1qr4c0kjr4v4qh2p6n64atw75tj6hy2g5emfjwskukxrxaj0xh69p8yvyf23w05rw229fvx3qlth054uug6z7vgawjewqy04qr2?apiKey=Xk4cN5mwkWh8NhO6O3bf41q4SEZjwY2g"
+{"success":true,"amount":1000000000000,"fee":168889,"txid":"e48cb47f39be4e7247c6cd86d8c481bbb57e92e5e4d3f612348c8dbea4b999f8"}
+
+
+Check funds on address:
+
+export CARDANO_NODE_SOCKET_PATH=/home/artur/Projects/db-sync-7/cardano-node/state-node-shelley_qa/node.socket
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic 3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+767ce99448762d02b16b86c2e6d68c92e6975eea28922936384f541caea5e225     0        1000000000000 lovelace
+
+
+DB:
+
+sudo -su postgres
+[sudo] password for artur:
+
+List DBs:
+
+psql -c "\l"
+                                   List of databases
+     Name     |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
+--------------+----------+----------+-------------+-------------+-----------------------
+ allegra      | artur    | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ cexplorer    | artur    | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ cexplorer2   | artur    | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ cexplorer3   | artur    | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ postgres     | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ shelley-test | artur    | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0    | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres          +
+              |          |          |             |             | postgres=CTc/postgres
+ template1    | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres          +
+              |          |          |             |             | postgres=CTc/postgres
+ testnet      | artur    | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+(9 rows)
+
+
+psql shelleyqa
+psql (10.15 (Ubuntu 10.15-0ubuntu0.18.04.1))
+Type "help" for help.
+
+shelleyqa=#
+
+
+
+QUESTION 1:
+
+
+allegra=# select * from tx where hash='\xd4c577ee0cdb5b2121c157f04db907ed140f0e1591a32668aef4e396406450c3';
+ id |                                hash                                | block_id | block_index |     out_sum     |  fee   | deposit | size | invalid_before | invalid_hereafter
+----+--------------------------------------------------------------------+----------+-------------+-----------------+--------+---------+------+----------------+-------------------
+ 45 | \xd4c577ee0cdb5b2121c157f04db907ed140f0e1591a32668aef4e396406450c3 |     7142 |           0 | 994999988812924 | 168873 |       0 |  191 |         143658 |            143658
+(1 row)
+
+
+
+Transaction inputs:
+
+allegra=# select tx_out.* from tx_out
+               inner join tx_in on tx_out.tx_id = tx_in.tx_out_id
+               inner join tx on tx.id = tx_in.tx_in_id and tx_in.tx_out_index = tx_out.index
+               where tx.hash = '\xd4c577ee0cdb5b2121c157f04db907ed140f0e1591a32668aef4e396406450c3' ;
+ id | tx_id | index |                                                   address                                                    |                                                     address_raw                                                      |                        payment_cred                        | stake_address_id |      value
+----+-------+-------+--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+------------------+-----------------
+ 29 |    17 |     0 | addr_test1qz69whnjslezrq5h0swt666rnlt3ph6930ctuk9ag6gmg5w5xqy2yl7jcvcrnurtuauveg2tc5szufg2l7snrukt0n6qgpdzv8 | \x00b4575e7287f22182977c1cbd6b439fd710df458bf0be58bd4691b451d43008a27fd2c33039f06be778cca14bc5202e250affa131f2cb7cf4 | \xb4575e7287f22182977c1cbd6b439fd710df458bf0be58bd4691b451 |                1 | 994999988981797
+
+
+
+Transaction outputs:
+
+select tx_out.* from tx_out inner join tx on tx_out.tx_id = tx.id
+where tx.hash = '\xd4c577ee0cdb5b2121c157f04db907ed140f0e1591a32668aef4e396406450c3' ;
+
+id  | tx_id | index |                                                   address                                                    |                                                     address_raw                                                      |                        payment_cred                        | stake_address_id |      value
+-----+-------+-------+--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+------------------+-----------------
+127 |    45 |     0 | addr_test1qqxg7wjg2f9gr5ugd47v4tsak5eyajw04tuwx7talkn7ttlgl6da0qhdhprfczajk2nu4alwdqdptfyt3397dkhp9rtqlmq0wu | \x000c8f3a48524a81d3886d7ccaae1db5324ec9cfaaf8e3797dfda7e5afe8fe9bd782edb8469c0bb2b2a7caf7ee681a15a48b8c4be6dae128d6 | \x0c8f3a48524a81d3886d7ccaae1db5324ec9cfaaf8e3797dfda7e5af |               10 |   1000000000000
+128 |    45 |     1 | addr_test1qr398nx3t9dlutz7e8lhn4n9pgrma9xfykad4zvr4zkltnk5xqy2yl7jcvcrnurtuauveg2tc5szufg2l7snrukt0n6qtthjkq | \x00e253ccd1595bfe2c5ec9ff79d6650a07be94c925bada8983a8adf5ced43008a27fd2c33039f06be778cca14bc5202e250affa131f2cb7cf4 | \xe253ccd1595bfe2c5ec9ff79d6650a07be94c925bada8983a8adf5ce |                1 | 993999988812924
+(2 rows)
+
+
+allegra=# select * from stake_address where id=10;
+ id |                           hash_raw                           |                               view                               | registered_tx_id
+----+--------------------------------------------------------------+------------------------------------------------------------------+------------------
+ 10 | \xe0e8fe9bd782edb8469c0bb2b2a7caf7ee681a15a48b8c4be6dae128d6 | stake_test1ur50ax7hstkms35upwet9f727lhxsxs45j9ccjlxmtsj34sq00vfj |               45
+
+
+ which is my stake address 1;
+
+
+ 2 - CREATE SHELLEY TX in ALLEGRA ERA
+
+ Create a second payment key pair and address
+
+
+ To create our transaction we need the protocol parameters
+
+ cardano-cli query protocol-parameters --allegra-era \
+     --testnet-magic 3 \
+     --out-file protocol.json
+
+
+  cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                            TxHash                                 TxIx        Amount
+  --------------------------------------------------------------------------------------
+  767ce99448762d02b16b86c2e6d68c92e6975eea28922936384f541caea5e225     0        1000000000000 lovelace
+
+
+
+ Draft the SHELLEY transaction in ALLEGRA
+
+ cardano-cli transaction build-raw --shelley-era \
+ --tx-in 767ce99448762d02b16b86c2e6d68c92e6975eea28922936384f541caea5e225#0 \
+ --tx-out $(cat byron-payment.addr)+0 \
+ --tx-out $(cat payment.addr)+0 \
+ --ttl 0 \
+ --fee 0 \
+ --out-file tx.draft
+
+
+ cardano-cli transaction calculate-min-fee \
+ --tx-body-file tx.draft \
+ --tx-in-count 1 \
+ --tx-out-count 2 \
+ --witness-count 1 \
+ --byron-witness-count 0 \
+ --testnet-magic 12 \
+ --protocol-params-file protocol.json
+
+ 176061 Lovelace
+
+ Calculate the change to send back to payment.addr
+
+ expr 1000000000000 - 10000000000 - 176061
+ 989999823939
+
+
+ cardano-cli query tip --testnet-magic 3
+ {
+     "blockNo": 476667,
+     "headerHash": "ffd54c5ad3efee76bbe5ca92bb9bbb2605bd038c0c46f9e6d52752aa30f581e6",
+     "slotNo": 9921400
+ }
+
+WITHOUT TTL:
+
+ cardano-cli transaction build-raw --shelley-era \
+ --tx-in 767ce99448762d02b16b86c2e6d68c92e6975eea28922936384f541caea5e225#0 \
+ --tx-out $(cat byron-payment.addr)+10000000000 \
+ --tx-out $(cat payment.addr)+989999823939 \
+ --fee 176061 \
+ --out-file tx001.raw
+
+Shelley command failed: transaction build-raw  Error: A TTL must be specified for Shelley era transactions.
+
+
+cardano-cli transaction build-raw --shelley-era \
+--tx-in 767ce99448762d02b16b86c2e6d68c92e6975eea28922936384f541caea5e225#0 \
+--tx-out $(cat byron-payment.addr)+10000000000 \
+--tx-out $(cat payment.addr)+989999823939 \
+--ttl 10021400 \
+--fee 176061 \
+--out-file tx001.raw
+
+
+ cardano-cli transaction sign \
+ --tx-body-file tx001.raw \
+ --signing-key-file ../keys/payment.skey \
+ --testnet-magic 3 \
+ --out-file tx001.signed
+
+
+ cardano-cli transaction submit \
+ --tx-file tx001.signed \
+ --testnet-magic 3
+
+
+ cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                            TxHash                                 TxIx        Amount
+ --------------------------------------------------------------------------------------
+ 7f5010f5d2db91f206a78af570197f157f4c7372db3ef13470cdfbcdebf576b1     1        989999823939 lovelace
+
+
+
+ cardano-cli query utxo --address $(cat byron-payment.addr) --testnet-magic 3 --allegra-era
+                            TxHash                                 TxIx        Amount
+ --------------------------------------------------------------------------------------
+ 7f5010f5d2db91f206a78af570197f157f4c7372db3ef13470cdfbcdebf576b1     0        10000000000 lovelace
+
+
+
+id |                                hash                                | block_id | block_index |      out_sum      |   fee   | deposit | size | invalid_before | invalid_hereafter
+----+--------------------------------------------------------------------+----------+-------------+-------------------+---------+---------+------+----------------+-------------------
+46 | \xe647aba45dafe5a03813ee62150dc03c8ba144044e6a4addfd251000e1395915 |     7709 |           0 |      999999823939 |  176061 |       0 |  180 |         148640 |            148640
+
+
+Transaction inputs:
+
+select tx_out.* from tx_out
+inner join tx_in on tx_out.tx_id = tx_in.tx_out_id
+inner join tx on tx.id = tx_in.tx_in_id and tx_in.tx_out_index = tx_out.index
+where tx.hash = '\xe647aba45dafe5a03813ee62150dc03c8ba144044e6a4addfd251000e1395915' ;
+
+
+id  | tx_id | index |                                                   address                                                    |                                                     address_raw                                                      |                        payment_cred                        | stake_address_id |     value
+-----+-------+-------+--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+------------------+---------------
+ 127 |    45 |     0 | addr_test1qqxg7wjg2f9gr5ugd47v4tsak5eyajw04tuwx7talkn7ttlgl6da0qhdhprfczajk2nu4alwdqdptfyt3397dkhp9rtqlmq0wu | \x000c8f3a48524a81d3886d7ccaae1db5324ec9cfaaf8e3797dfda7e5afe8fe9bd782edb8469c0bb2b2a7caf7ee681a15a48b8c4be6dae128d6 | \x0c8f3a48524a81d3886d7ccaae1db5324ec9cfaaf8e3797dfda7e5af |               10 | 1000000000000
+
+
+
+Transaction outputs:
+
+select tx_out.* from tx_out inner join tx on tx_out.tx_id = tx.id
+where tx.hash = '\xe647aba45dafe5a03813ee62150dc03c8ba144044e6a4addfd251000e1395915' ;
+
+id  | tx_id | index |                                                   address                                                    |                                                     address_raw                                                      |                        payment_cred                        | stake_address_id |    value
+-----+-------+-------+--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+------------------+--------------
+129 |    46 |     0 | FHnt4NL7yPY8yBE5wUTYg3ePv6p75bMEuEFRJa8w671QL2CNJqzUNvJkXQHh3ws                                              | \x82d818582483581cb39447d3c08a050fe462c38cac9de7076428cc34ff093c77691c6791a102410c001a2084ed56                       |                                                            |                  |  10000000000
+130 |    46 |     1 | addr_test1qqxg7wjg2f9gr5ugd47v4tsak5eyajw04tuwx7talkn7ttlgl6da0qhdhprfczajk2nu4alwdqdptfyt3397dkhp9rtqlmq0wu | \x000c8f3a48524a81d3886d7ccaae1db5324ec9cfaaf8e3797dfda7e5afe8fe9bd782edb8469c0bb2b2a7caf7ee681a15a48b8c4be6dae128d6 | \x0c8f3a48524a81d3886d7ccaae1db5324ec9cfaaf8e3797dfda7e5af |               10 | 989999823939
+
+
+
+3 - CREATE SHELLEY TX with METADATA in ALLEGRA ERA
+
+Draft the SHELLEY transaction in ALLEGRA ERA
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+7f5010f5d2db91f206a78af570197f157f4c7372db3ef13470cdfbcdebf576b1     1        989999823939 lovelace
+
+
+
+cardano-cli transaction build-raw --shelley-era \
+--tx-in 7f5010f5d2db91f206a78af570197f157f4c7372db3ef13470cdfbcdebf576b1#1 \
+--tx-out $(cat extended-payment.addr)+0 \
+--tx-out $(cat payment.addr)+0 \
+--ttl 0 \
+--fee 0 \
+--out-file tx.draft
+
+
+cardano-cli transaction calculate-min-fee \
+--tx-body-file tx.draft \
+--tx-in-count 1 \
+--tx-out-count 2 \
+--witness-count 1 \
+--byron-witness-count 0 \
+--testnet-magic 3 \
+--protocol-params-file protocol.json
+
+176545 Lovelace
+
+QUESTION - why fee is being calculated wrong ?
+
+Calculate the change to send back to payment.addr
+
+expr 989999823939 - 100000000000 - 183849
+889999640090
+
+
+cardano-cli query tip --testnet-magic 3
+{
+    "blockNo": 476688,
+    "headerHash": "2ca54cb667c10cbc378a3efcc7bd43138849a5dc619da9b00484d99c571375f6",
+    "slotNo": 9921880
+}
+
+
+A - attempt to use invalid upper bound set in the past
+
+cardano-cli transaction build-raw --shelley-era \
+--tx-in 7f5010f5d2db91f206a78af570197f157f4c7372db3ef13470cdfbcdebf576b1#1 \
+--tx-out $(cat extended-payment.addr)+100000000000 \
+--tx-out $(cat payment.addr)+889999640090 \
+--invalid-hereafter 3921880 \
+--fee 183849 \
+--metadata-json-file metadata.json \
+--metadata-json-file metadata2.json \
+--metadata-cbor-file metadata3.cbor \
+--metadata-cbor-file metadata4.cbor \
+--out-file tx002.raw
+
+
+
+cardano-cli transaction sign \
+--tx-body-file tx002.raw \
+--signing-key-file ../keys/payment.skey \
+--testnet-magic 3 \
+--out-file tx002.signed
+
+
+cardano-cli transaction submit \
+--tx-file tx002.signed \
+--testnet-magic 3
+
+
+Shelley command failed: transaction submit  Error: Error while submitting tx: ApplyTxError [LedgerFailure (UtxowFailure (UtxoFailure (OutsideValidityIntervalUTxO (ValidityInterval {validFrom = SNothing, validTo = SJust (SlotNo 3921880)}) (SlotNo 9921961))))]
+
+B - attempt to use lower bound for shelley ERA
+
+cardano-cli transaction build-raw --shelley-era \
+--tx-in 7f5010f5d2db91f206a78af570197f157f4c7372db3ef13470cdfbcdebf576b1#1 \
+--tx-out $(cat extended-payment.addr)+100000000000 \
+--tx-out $(cat payment.addr)+889999647878 \
+--invalid-before 159640 \
+--fee 176061 \
+--metadata-json-file metadata.json \
+--metadata-json-file metadata2.json \
+--metadata-cbor-file metadata3.cbor \
+--metadata-cbor-file metadata4.cbor \
+--out-file tx002.raw
+
+Shelley command failed: transaction build-raw  Error: A validity lower bound cannot be used for Shelley era transactions.
+
+
+C - valid shelley TX in allegra ERA
+
+cardano-cli transaction build-raw --shelley-era \
+--tx-in 7f5010f5d2db91f206a78af570197f157f4c7372db3ef13470cdfbcdebf576b1#1 \
+--tx-out $(cat extended-payment.addr)+100000000000 \
+--tx-out $(cat payment.addr)+889999640090 \
+--invalid-hereafter 10022040 \
+--fee 183849 \
+--metadata-json-file metadata.json \
+--metadata-json-file metadata2.json \
+--metadata-cbor-file metadata3.cbor \
+--metadata-cbor-file metadata4.cbor \
+--out-file tx002.raw
+
+
+
+cardano-cli transaction sign \
+--tx-body-file tx002.raw \
+--signing-key-file ../keys/payment.skey \
+--testnet-magic 3 \
+--out-file tx002.signed
+
+
+cardano-cli transaction submit \
+--tx-file tx002.signed \
+--testnet-magic 3
+
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+f638414c1e79a938ddd769b0643e33142507459a111178198fd45541f1fabf3d     1        889999640090 lovelace
+
+
+TX CHECK:
+
+shelleyqa=# select * from tx where hash='\xf638414c1e79a938ddd769b0643e33142507459a111178198fd45541f1fabf3d';
+  id   |                                hash                                | block_id | block_index |   out_sum    |  fee   | deposit | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+--------------+--------+---------+------+----------------+-------------------
+ 21666 | \xf638414c1e79a938ddd769b0643e33142507459a111178198fd45541f1fabf3d |   476706 |           0 | 989999640090 | 183849 |       0 |  647 |                |          10022040
+(1 row)
+
+
+
+
+METADATA CHECK:
+
+shelleyqa=# select * from tx_metadata where tx_id = 21666;
+ id | key |                               json                               | tx_id |                                            bytes
+----+-----+------------------------------------------------------------------+-------+----------------------------------------------------------------------------------------------
+ 11 |   1 | {"Name": "Artur", "Project": "Cardano-Node"}                     | 21666 | \xa101a2644e616d656541727475726750726f6a6563746c43617264616e6f2d4e6f6465
+ 12 |   2 | {"Team": "QA", "Members": ["Dorin", "Artur", "Martin", "James"]} | 21666 | \xa102a2674d656d626572738465446f72696e654172747572664d617274696e654a616d6573645465616d625141
+ 13 |   3 | {"ComplexValue": {"Nested": "True"}}                             | 21666 | \xa103a16c436f6d706c657856616c7565a1664e65737465646454727565
+ 14 |   4 | [{"CI": "Buildkite"}, {"Main_Language": "Haskell"}]              | 21666 | \xa10482a1624349694275696c646b697465a16d4d61696e5f4c616e6775616765674861736b656c6c
+ 15 |   5 | {"DB": "Postgress", "GraphQL": "Javascript"}                     | 21666 | \xa105a262444269506f73746772657373674772617068514c6a4a617661736372697074
+ 16 |   6 | {"Test": "JSON Metadata", "Test_No": 13}                         | 21666 | \xa106a264546573746d4a534f4e204d6574616461746167546573745f4e6f0d
+ 17 |   7 | "CBOR TX Metadata Test"                                          | 21666 | \xa1077543424f52205458204d657461646174612054657374
+ 18 |   8 | "00 01 02 03 04 05 06 07 08 09"                                  | 21666 | \xa108781d3030203031203032203033203034203035203036203037203038203039
+ 19 |   9 | "CBOR TX Metadata Test 2"                                        | 21666 | \xa1097743424f52205458204d6574616461746120546573742032
+ 20 |  10 | {"NestedData": {"Nested": "True"}}                               | 21666 | \xa10aa16a4e657374656444617461a1664e65737465646454727565
+(10 rows)
+
+
+
+
+4 - CREATE ALLEGRA TX with METADATA in ALLEGRA ERA
+
+Draft the SHELLEY transaction in ALLEGRA ERA
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+f638414c1e79a938ddd769b0643e33142507459a111178198fd45541f1fabf3d     1        889999640090 lovelace
+
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in f638414c1e79a938ddd769b0643e33142507459a111178198fd45541f1fabf3d#1 \
+--tx-out $(cat extended-payment.addr)+0 \
+--tx-out $(cat payment.addr)+0 \
+--lower-bound 0 \
+--upper-bound 0 \
+--fee 0 \
+--out-file tx3.draft
+
+
+cardano-cli transaction calculate-min-fee \
+--tx-body-file tx3.draft \
+--tx-in-count 1 \
+--tx-out-count 2 \
+--witness-count 1 \
+--byron-witness-count 0 \
+--testnet-magic 12 \
+--protocol-params-file protocol.json
+
+176633 Lovelace
+
+Calculate the change to send back to payment.addr
+
+expr 889999640090 - 10000000 - 184025
+889989456065
+
+
+cardano-cli query tip --testnet-magic 3
+{
+    "blockNo": 476710,
+    "headerHash": "580eba65ce04f9820c4091f1efd487fe4ea75bddf74de89a9b3d22d141bde2e0",
+    "slotNo": 9922240
+}
+
+
+A - attempt to use lower bound slot > upper bound slot (in the past)
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in f638414c1e79a938ddd769b0643e33142507459a111178198fd45541f1fabf3d#1 \
+--tx-out $(cat extended-payment.addr)+10000000 \
+--tx-out $(cat payment.addr)+889989456065 \
+--invalid-before 10022240 \
+--invalid-hereafter 8922240 \
+--fee 184025 \
+--metadata-json-file metadata.json \
+--metadata-json-file metadata2.json \
+--metadata-cbor-file metadata3.cbor \
+--metadata-cbor-file metadata4.cbor \
+--out-file tx003.raw
+
+
+cardano-cli transaction sign \
+--tx-body-file tx003.raw \
+--signing-key-file ../keys/payment.skey \
+--testnet-magic 3 \
+--out-file tx003.signed
+
+
+cardano-cli transaction submit \
+--tx-file tx003.signed \
+--testnet-magic 3
+
+Shelley command failed: transaction submit  Error: Error while submitting tx: ApplyTxError [LedgerFailure (UtxowFailure (UtxoFailure (OutsideValidityIntervalUTxO (ValidityInterval {validFrom = SJust (SlotNo 10022240), validTo = SJust (SlotNo 8922240)}) (SlotNo 9922361))))]
+
+B - attempt to NOT use boundaries
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in f638414c1e79a938ddd769b0643e33142507459a111178198fd45541f1fabf3d#1 \
+--tx-out $(cat extended-payment.addr)+10000000 \
+--tx-out $(cat payment.addr)+889989456065 \
+--fee 184025 \
+--metadata-json-file metadata.json \
+--metadata-json-file metadata2.json \
+--metadata-cbor-file metadata3.cbor \
+--metadata-cbor-file metadata4.cbor \
+--out-file tx003.raw
+
+
+cardano-cli transaction sign \
+--tx-body-file tx003.raw \
+--signing-key-file ../keys/payment.skey \
+--testnet-magic 3 \
+--out-file tx003.signed
+
+
+cardano-cli transaction submit \
+--tx-file tx003.signed \
+--testnet-magic 3
+
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+eb826ddfba2663303fbca410f9b39878a93440d5c921af2dc3b47598fcfe27f2     1        889989456065 lovelace
+
+
+
+
+shelleyqa=# select * from tx where hash='\xeb826ddfba2663303fbca410f9b39878a93440d5c921af2dc3b47598fcfe27f2';
+  id   |                                hash                                | block_id | block_index |   out_sum    |  fee   | deposit | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+--------------+--------+---------+------+----------------+-------------------
+ 21667 | \xeb826ddfba2663303fbca410f9b39878a93440d5c921af2dc3b47598fcfe27f2 |   476726 |           0 | 889999456065 | 184025 |       0 |  639 |                |
+(1 row)
+
+
+
+4 Attempt to use only invalid_before:
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+eb826ddfba2663303fbca410f9b39878a93440d5c921af2dc3b47598fcfe27f2     1        889989456065 lovelace
+
+
+Calculate the change to send back to payment.addr
+
+expr 889989456065 - 10000000 - 184025
+889979272040
+
+
+cardano-cli query tip --testnet-magic 3
+{
+    "blockNo": 476754,
+    "headerHash": "fba422cd040c81abcce793a2c047711979dccc16e16d38af8b8578ea3ba47818",
+    "slotNo": 9923160
+}
+
+
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in eb826ddfba2663303fbca410f9b39878a93440d5c921af2dc3b47598fcfe27f2#1 \
+--tx-out $(cat extended-payment.addr)+10000000 \
+--tx-out $(cat payment.addr)+889979272040 \
+--invalid-before 9923160 \
+--fee 184025 \
+--metadata-json-file metadata.json \
+--metadata-json-file metadata2.json \
+--metadata-cbor-file metadata3.cbor \
+--metadata-cbor-file metadata4.cbor \
+--out-file tx003.raw
+
+
+cardano-cli transaction sign \
+--tx-body-file tx003.raw \
+--signing-key-file ../keys/payment.skey \
+--testnet-magic 3 \
+--out-file tx003.signed
+
+
+cardano-cli transaction submit \
+--tx-file tx003.signed \
+--testnet-magic 3
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+bb62f95ec717e85d6bd53b144547c8978c444063edd4040b689fd126320c6044     1        889979272040 lovelace
+
+
+
+shelleyqa=# select * from tx where hash='\xbb62f95ec717e85d6bd53b144547c8978c444063edd4040b689fd126320c6044';
+  id   |                                hash                                | block_id | block_index |   out_sum    |  fee   | deposit | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+--------------+--------+---------+------+----------------+-------------------
+ 21668 | \xbb62f95ec717e85d6bd53b144547c8978c444063edd4040b689fd126320c6044 |   476763 |           0 | 889989272040 | 184025 |       0 |  645 |        9923160 |
+(1 row)
+
+
+5 Attempt to use only invalid_hereafter:
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+bb62f95ec717e85d6bd53b144547c8978c444063edd4040b689fd126320c6044     1        889979272040 lovelace
+
+
+Calculate the change to send back to payment.addr
+
+expr 889979272040 - 10000000 - 184025
+889969088015
+
+
+cardano-cli query tip --testnet-magic 3
+{
+    "blockNo": 476768,
+    "headerHash": "8af6cc21f28747a282478a90364e55adc856df87e7070825c8b096b5b4db90f9",
+    "slotNo": 9923520
+}
+
+
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in bb62f95ec717e85d6bd53b144547c8978c444063edd4040b689fd126320c6044#1 \
+--tx-out $(cat extended-payment.addr)+10000000 \
+--tx-out $(cat payment.addr)+889969088015 \
+--invalid-hereafter 10023520 \
+--fee 184025 \
+--metadata-json-file metadata.json \
+--metadata-json-file metadata2.json \
+--metadata-cbor-file metadata3.cbor \
+--metadata-cbor-file metadata4.cbor \
+--out-file tx003.raw
+
+
+cardano-cli transaction sign \
+--tx-body-file tx003.raw \
+--signing-key-file ../keys/payment.skey \
+--testnet-magic 3 \
+--out-file tx003.signed
+
+
+cardano-cli transaction submit \
+--tx-file tx003.signed \
+--testnet-magic 3
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+ec7c653924a4b95b57ea26e91d953df1f67ca73dc18ba7d9a2d07f8fc46ae1a7     1        889969088015 lovelace
+
+
+
+shelleyqa=# select * from tx where hash='\xec7c653924a4b95b57ea26e91d953df1f67ca73dc18ba7d9a2d07f8fc46ae1a7';
+  id   |                                hash                                | block_id | block_index |   out_sum    |  fee   | deposit | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+--------------+--------+---------+------+----------------+-------------------
+ 21669 | \xec7c653924a4b95b57ea26e91d953df1f67ca73dc18ba7d9a2d07f8fc46ae1a7 |   476775 |           0 | 889979088015 | 184025 |       0 |  645 |                |          10023520
+(1 row)
+
+
+6 Attempt to use both fields invalid_before & invalid_hereafter:
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+ec7c653924a4b95b57ea26e91d953df1f67ca73dc18ba7d9a2d07f8fc46ae1a7     1        889969088015 lovelace
+
+
+Calculate the change to send back to payment.addr
+
+expr 889969088015 - 10000000 - 184025
+889958903990
+
+
+cardano-cli query tip --testnet-magic 3
+{
+    "blockNo": 476778,
+    "headerHash": "e3626ddbb5d0d7f8dfa8c2f21db3172355ef2a8c6eedbb8a855998d5abb8c089",
+    "slotNo": 9923760
+}
+
+
+
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in ec7c653924a4b95b57ea26e91d953df1f67ca73dc18ba7d9a2d07f8fc46ae1a7#1 \
+--tx-out $(cat extended-payment.addr)+10000000 \
+--tx-out $(cat payment.addr)+889958903990 \
+--invalid-before 9923760 \
+--invalid-hereafter 10023520 \
+--fee 184025 \
+--metadata-json-file metadata.json \
+--metadata-json-file metadata2.json \
+--metadata-cbor-file metadata3.cbor \
+--metadata-cbor-file metadata4.cbor \
+--out-file tx003.raw
+
+
+cardano-cli transaction sign \
+--tx-body-file tx003.raw \
+--signing-key-file ../keys/payment.skey \
+--testnet-magic 3 \
+--out-file tx003.signed
+
+
+cardano-cli transaction submit \
+--tx-file tx003.signed \
+--testnet-magic 3
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+65fee935675b77228da6c0b8f0fea740cd6c1ca7c84a23b69f30a02fd72cb1d6     1        889958903990 lovelace
+
+
+
+shelleyqa=# select * from tx where hash='\x65fee935675b77228da6c0b8f0fea740cd6c1ca7c84a23b69f30a02fd72cb1d6';
+  id   |                                hash                                | block_id | block_index |   out_sum    |  fee   | deposit | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+--------------+--------+---------+------+----------------+-------------------
+ 21670 | \x65fee935675b77228da6c0b8f0fea740cd6c1ca7c84a23b69f30a02fd72cb1d6 |   476783 |           0 | 889968903990 | 184025 |       0 |  651 |        9923760 |          10023520
+(1 row)
+
+
+
+
+
+ =======================================================================
+
+
+
+5 Create a STAKE registration certificate - ALLEGRA ERA - without lower/upper boundaries
+
+
+cardano-cli stake-address registration-certificate \
+--stake-verification-key-file stake.vkey \
+--out-file stake.cert
+
+
+Query the UTXO of the address that pays for the transaction and deposit:
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+65fee935675b77228da6c0b8f0fea740cd6c1ca7c84a23b69f30a02fd72cb1d6     1        889958903990 lovelace
+
+Draft transaction
+
+
+
+
+"keyDeposit": 2000000,
+
+
+Calculate the change to send back to payment address after including the deposit
+expr 889958903990 - 200000 - 2000000
+889956703990
+
+
+
+Submit the certificate with a transaction:
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in 65fee935675b77228da6c0b8f0fea740cd6c1ca7c84a23b69f30a02fd72cb1d6#1 \
+--tx-out $(cat payment.addr)+889956703990 \
+--fee 200000 \
+--out-file tx006.raw \
+--certificate-file stake.cert
+
+Sign it:
+
+cardano-cli transaction sign \
+--tx-body-file tx006.raw \
+--signing-key-file payment.skey \
+--signing-key-file stake.skey \
+--testnet-magic 3 \
+--out-file tx006.signed
+
+
+And submit it:
+
+
+cardano-cli transaction submit \
+--tx-file tx006.signed \
+--testnet-magic 3
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+865d757f83126f1b208b2227b183e7e2eac1298a07756a280768a7dac5273a92     0        889956703990 lovelace
+
+
+shelleyqa=# select * from tx where hash='\x865d757f83126f1b208b2227b183e7e2eac1298a07756a280768a7dac5273a92';
+  id   |                                hash                                | block_id | block_index |   out_sum    |  fee   | deposit | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+--------------+--------+---------+------+----------------+-------------------
+ 21673 | \x865d757f83126f1b208b2227b183e7e2eac1298a07756a280768a7dac5273a92 |   476841 |           0 | 889956703990 | 200000 | 2000000 |  359 |                |
+
+
+ shelleyqa=# select * from stake_registration where tx_id=21673;
+  id | addr_id | cert_index | tx_id
+ ----+---------+------------+-------
+  26 |      63 |          0 | 21673
+ (1 row)
+
+
+
+
+
+==============================================================================================================================================================================
+
+6 Create a STAKE 2 registration certificate - ALLEGRA ERA - with lower/upper boundaries
+
+
+cardano-cli stake-address registration-certificate \
+--stake-verification-key-file stake2.vkey \
+--out-file stake2.cert
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+865d757f83126f1b208b2227b183e7e2eac1298a07756a280768a7dac5273a92     0        889956703990 lovelace
+
+
+
+
+Calculate the change to send back to payment address after including the deposit
+expr 889956703990 - 200000 - 2000000
+
+889954503990
+
+cardano-cli query tip --testnet-magic 12
+{
+    "blockNo": 8505,
+    "headerHash": "fd3e0d561af7aace71100d05223e577d59ea34bf06db0c712e42cd0c5f139752",
+    "slotNo": 163760
+}
+
+
+Submit the certificate with a transaction:
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in 865d757f83126f1b208b2227b183e7e2eac1298a07756a280768a7dac5273a92#0 \
+--tx-out $(cat payment.addr)+889954503990 \
+--fee 200000 \
+--out-file tx007.raw \
+--certificate-file stake2.cert
+
+Sign it:
+
+cardano-cli transaction sign \
+--tx-body-file tx007.raw \
+--signing-key-file payment.skey \
+--signing-key-file stake2.skey \
+--testnet-magic 3 \
+--out-file tx007.signed
+
+
+And submit it:
+
+
+cardano-cli transaction submit \
+--tx-file tx007.signed \
+--testnet-magic 3
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic  3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+2734218593c5eabecce7014607964e8599cdcd1c08394173c6eda4a623c5abee     0        889954503990 lovelace
+
+shelleyqa=# select * from tx where hash='\x2734218593c5eabecce7014607964e8599cdcd1c08394173c6eda4a623c5abee';
+  id   |                                hash                                | block_id | block_index |   out_sum    |  fee   | deposit | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+--------------+--------+---------+------+----------------+-------------------
+ 21674 | \x2734218593c5eabecce7014607964e8599cdcd1c08394173c6eda4a623c5abee |   476860 |           0 | 889954503990 | 200000 | 2000000 |  359 |                |
+(1 row)
+
+
+shelleyqa=# select * from stake_registration where tx_id=21674;
+ id | addr_id | cert_index | tx_id
+----+---------+------------+-------
+ 27 |      64 |          0 | 21674
+
+
+
+==============================================================================================================================================================================
+
+
+7 Create a STAKE 3 registration certificate - SHELLEY ERA - upper boundaries
+
+cardano-cli stake-address registration-certificate \
+--stake-verification-key-file stake3.vkey \
+--out-file stake3.cert
+
+
+cardano-cli query utxo --address "$(cat extended-payment.addr)" --testnet-magic  12 --allegra-era
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+d1760f96da39536d8cfe97a1910de34b90136ab83b7bad11ef73868135f0c3b7     1       99996454789
+f9a36a5c06ed453d93890772a899bfd40eec73eb92a684dfbeb1c241ac54d1e8     0          10000000
+
+
+Draft transaction
+
+cardano-cli transaction build-raw --shelley-era \
+--tx-in d1760f96da39536d8cfe97a1910de34b90136ab83b7bad11ef73868135f0c3b7#1 \
+--tx-out $(cat extended-payment.addr)+0 \
+--upper-bound 0 \
+--fee 0 \
+--out-file draft008.raw \
+--certificate-file stake3.cert
+
+
+Calculate fees
+
+cardano-cli transaction calculate-min-fee \
+--tx-body-file draft008.raw \
+--tx-in-count 1 \
+--tx-out-count 1 \
+--witness-count 1 \
+--byron-witness-count 0 \
+--testnet-magic 12 \
+--protocol-params-file protocol.json
+
+172585 Lovelace
+
+
+"keyDeposit": 2000000,
+
+
+Query the UTXO of the address that pays for the transaction and deposit:
+
+
+cardano-cli query utxo --address "$(cat extended-payment.addr)" --testnet-magic  12 --allegra-era
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+d1760f96da39536d8cfe97a1910de34b90136ab83b7bad11ef73868135f0c3b7     1       99996454789
+
+
+
+Calculate the change to send back to payment address after including the deposit
+expr 99996454789 - 172585 - 2000000
+
+99994282204
+
+cardano-cli query tip --testnet-magic 12
+{
+    "blockNo": 8640,
+    "headerHash": "bf0bf653f0bb87012de3d8a4c1685f1bf5a6afb6a584e516bee2b512dababceb",
+    "slotNo": 166460
+}
+
+
+
+Submit the certificate with a transaction:
+
+cardano-cli transaction build-raw --shelley-era \
+--tx-in d1760f96da39536d8cfe97a1910de34b90136ab83b7bad11ef73868135f0c3b7#1 \
+--tx-out $(cat extended-payment.addr)+99994282204 \
+--upper-bound 167460 \
+--fee 172585 \
+--out-file tx008.raw \
+--certificate-file stake3.cert
+
+Sign it:
+
+cardano-cli transaction sign \
+--tx-body-file tx008.raw \
+--signing-key-file extended-payment.skey \
+--signing-key-file stake3.skey \
+--testnet-magic 12 \
+--out-file tx008.signed
+
+
+And submit it:
+
+
+cardano-cli transaction submit \
+--tx-file tx008.signed \
+--testnet-magic 12
+
+
+
+cardano-cli query utxo --address "$(cat extended-payment.addr)" --testnet-magic  12 --allegra-era
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+920c523d78d31e994bc53de7dc28748c1bd325dbfb30e621b6a72344c7e9dd17     0       99994282204
+
+
+allegra=# select * from stake_registration;
+ id | addr_id | cert_index | tx_id
+----+---------+------------+-------
+  1 |      10 |          0 |    51
+  2 |      11 |          0 |    52
+  3 |      12 |          0 |    54
+
+
+allegra=# select * from tx where hash='\x920c523d78d31e994bc53de7dc28748c1bd325dbfb30e621b6a72344c7e9dd17';
+ id |                                hash                                | block_id | block_index |   out_sum   |  fee   | deposit | size | invalid_before | invalid_hereafter
+----+--------------------------------------------------------------------+----------+-------------+-------------+--------+---------+------+----------------+-------------------
+ 54 | \x920c523d78d31e994bc53de7dc28748c1bd325dbfb30e621b6a72344c7e9dd17 |     8649 |           0 | 99994282204 | 172585 | 2000000 |  158 |         167460 |            167460
+
+
+
+================================================================================================================================================================================
+
+8 Now, let’s make a transfer from "Byron" Payment address to  "Extended" Payment address in SHELLEY ERA
+
+
+cardano-cli query utxo --address $(cat byron-payment.addr) --testnet-magic 12 --allegra-era
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+e647aba45dafe5a03813ee62150dc03c8ba144044e6a4addfd251000e1395915     0       10000000000
+
+
+Draft the transaction
+
+cardano-cli transaction build-raw --shelley-era \
+--tx-in e647aba45dafe5a03813ee62150dc03c8ba144044e6a4addfd251000e1395915#0 \
+--tx-out $(cat extended-payment.addr)+0 \
+--tx-out $(cat byron-payment.addr)+0 \
+--ttl 0 \
+--fee 0 \
+--out-file tx.draft
+
+
+cardano-cli transaction calculate-min-fee \
+--tx-body-file tx.draft \
+--tx-in-count 1 \
+--tx-out-count 2 \
+--witness-count 1 \
+--byron-witness-count 0 \
+--testnet-magic 12 \
+--protocol-params-file protocol.json
+
+176061 Lovelace
+
+Calculate the change to send back to payment.addr
+
+expr 10000000000 - 1000000 - 176061
+9998823939
+
+cardano-cli query tip --testnet-magic 12
+{
+    "blockNo": 10786,
+    "headerHash": "3581aa21cf2040bc5bea7fe0e422ef9f95ce52ef74ec74ea7234135f428f3809",
+    "slotNo": 209380
+}
+
+
+cardano-cli transaction build-raw \
+--tx-in e647aba45dafe5a03813ee62150dc03c8ba144044e6a4addfd251000e1395915#0 \
+--tx-out $(cat extended-payment.addr)+1000000 \
+--tx-out $(cat byron-payment.addr)+9998823939 \
+--ttl 219380 \
+--fee 176061 \
+--out-file tx009.raw
+
+
+
+cardano-cli transaction sign \
+--tx-body-file tx009.raw \
+--signing-key-file byron-payment.skey \
+--testnet-magic 12 \
+--out-file tx009.signed
+
+
+cardano-cli transaction submit \
+--tx-file tx009.signed \
+--testnet-magic 12
+
+
+cardano-cli query utxo --address $(cat extended-payment.addr) --testnet-magic 12 --allegra-era
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+0b575e8c080bcbc16b0415f03df7c03e0931840c22dc82cde1cf04c682b0a6db     0           1000000
+
+
+select * from tx where hash='\x0b575e8c080bcbc16b0415f03df7c03e0931840c22dc82cde1cf04c682b0a6db';
+ id |                                hash                                | block_id | block_index |  out_sum   |  fee   | deposit | size | invalid_before | invalid_hereafter
+----+--------------------------------------------------------------------+----------+-------------+------------+--------+---------+------+----------------+-------------------
+ 58 | \x0b575e8c080bcbc16b0415f03df7c03e0931840c22dc82cde1cf04c682b0a6db |    10793 |           0 | 9999823939 | 176061 |       0 |  176 |         219380 |            219380
+
+
+select tx_out.* from tx_out inner join tx on tx_out.tx_id = tx.id
+where tx.hash = '\x0b575e8c080bcbc16b0415f03df7c03e0931840c22dc82cde1cf04c682b0a6db' ;
+
+id  | tx_id | index |                                                   address                                                    |                                                     address_raw                                                      |                        payment_cred                        | stake_address_id |   value
+-----+-------+-------+--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+------------------+------------
+ 150 |    58 |     0 | addr_test1qqcltrt9tzl9wa97r4k7uf4wr03sq9zm28ssp6gqs8l9r77kphedkjhk7t5rdmf4xarkm9yude5w0qegf7t298euuckscyxkqx | \x0031f58d6558be5774be1d6dee26ae1be300145b51e100e90081fe51fbd60df2db4af6f2e836ed3537476d949c6e68e783284f96a29f3ce62d | \x31f58d6558be5774be1d6dee26ae1be300145b51e100e90081fe51fb |               11 |    1000000
+ 151 |    58 |     1 | FHnt4NL7yPY8yBE5wUTYg3ePv6p75bMEuEFRJa8w671QL2CNJqzUNvJkXQHh3ws                                              | \x82d818582483581cb39447d3c08a050fe462c38cac9de7076428cc34ff093c77691c6791a102410c001a2084ed56                       |                                                            |                  | 9998823939
+
+
+
+================================================================================================================================================================================================
+
+9 Now, let’s make a transfer from "Byron" Payment address to  "Extended" Payment address in ALLEGRA
+
+
+cardano-cli query utxo --address $(cat byron-payment.addr) --testnet-magic 12 --allegra-era
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+0b575e8c080bcbc16b0415f03df7c03e0931840c22dc82cde1cf04c682b0a6db     1        9998823939
+
+
+Draft the transaction
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in 0b575e8c080bcbc16b0415f03df7c03e0931840c22dc82cde1cf04c682b0a6db#1 \
+--tx-out $(cat extended-payment.addr)+0 \
+--tx-out $(cat byron-payment.addr)+0 \
+--fee 0 \
+--out-file tx.draft
+
+
+cardano-cli transaction calculate-min-fee \
+--tx-body-file tx.draft \
+--tx-in-count 1 \
+--tx-out-count 2 \
+--witness-count 1 \
+--byron-witness-count 0 \
+--testnet-magic 12 \
+--protocol-params-file protocol.json
+
+175973 Lovelace
+
+Calculate the change to send back to payment.addr
+
+expr 9998823939 - 1000000 - 175973
+9997647966
+
+cardano-cli query tip --testnet-magic 12
+{
+    "blockNo": 10786,
+    "headerHash": "3581aa21cf2040bc5bea7fe0e422ef9f95ce52ef74ec74ea7234135f428f3809",
+    "slotNo": 209380
+}
+
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in 0b575e8c080bcbc16b0415f03df7c03e0931840c22dc82cde1cf04c682b0a6db#1 \
+--tx-out $(cat extended-payment.addr)+1000000 \
+--tx-out $(cat byron-payment.addr)+9997647966 \
+--fee 175973 \
+--out-file tx010.raw
+
+
+
+cardano-cli transaction sign \
+--tx-body-file tx010.raw \
+--signing-key-file byron-payment.skey \
+--testnet-magic 12 \
+--out-file tx010.signed
+
+
+cardano-cli transaction submit \
+--tx-file tx010.signed \
+--testnet-magic 12
+
+
+cardano-cli query utxo --address $(cat extended-payment.addr) --testnet-magic 12 --allegra-era
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+0b575e8c080bcbc16b0415f03df7c03e0931840c22dc82cde1cf04c682b0a6db     0           1000000
+16b020c96f86c3966b09937a026759b8b0b17e31f9a1269ad17644749d18670f     0           1000000
+
+
+
+select * from tx where hash='\x16b020c96f86c3966b09937a026759b8b0b17e31f9a1269ad17644749d18670f';
+ id |                                hash                                | block_id | block_index |  out_sum   |  fee   | deposit | size | invalid_before | invalid_hereafter
+----+--------------------------------------------------------------------+----------+-------------+------------+--------+---------+------+----------------+-------------------
+ 59 | \x16b020c96f86c3966b09937a026759b8b0b17e31f9a1269ad17644749d18670f |    10937 |           0 | 9998647966 | 175973 |       0 |  170 |                |
+
+
+================================================================================================================================================================================================
+
+10 Generate your stake pool keys
+
+mkdir pool-keys
+cd pool-keys
+
+Generate Cold Keys and a Cold_counter:
+
+cardano-cli node key-gen \
+--cold-verification-key-file cold.vkey \
+--cold-signing-key-file cold.skey \
+--operational-certificate-issue-counter-file cold.counter
+
+
+Generate VRF Key pair
+
+cardano-cli node key-gen-VRF \
+--verification-key-file vrf.vkey \
+--signing-key-file vrf.skey
+
+
+Generate the KES Key pair
+
+cardano-cli node key-gen-KES \
+--verification-key-file kes.vkey \
+--signing-key-file kes.skey
+
+
+"slotsPerKESPeriod": 129600,
+
+
+
+cardano-cli query tip --testnet-magic 3
+{
+    "blockNo": 476866,
+    "headerHash": "46aa9696949ac42586f14288f5753345ec49b0e860bd205fa3d12cb813bf1beb",
+    "slotNo": 9925527
+}
+
+
+
+
+expr 9925527 / 129600
+76
+
+cardano-cli node issue-op-cert \
+--kes-verification-key-file kes.vkey \
+--cold-signing-key-file cold.skey \
+--operational-certificate-issue-counter cold.counter \
+--kes-period 76 \
+--out-file node.cert
+
+
+
+
+POOL topology:
+{
+  "Producers": [
+    {
+      "addr": "127.0.0.1",
+      "port": 4242,
+      "valency": 1
+    }
+  ]
+}
+
+RELAY topology:
+{
+  "Producers": [
+    {
+      "addr": "127.0.0.1",
+      "port": 4240,
+      "valency": 1
+    },
+    {
+      "addr": "relays-new.shelley-qa.dev.cardano.org",
+      "port": 3001,
+      "valency": 2
+    }
+  ]
+}
+
+
+
+
+Register a Stake Pool with Metadata:
+
+Create a JSON file with your pool’s metadata
+{
+"name": "ArturPool1",
+"description": "Test allegra pool 1 DB-Sync 7.0",
+"ticker": "QA_1",
+"homepage": "http://arturwieczorek.neostrada.pl/"
+}
+
+pool_metadata_line1="\"name\": \"QA Pool "$(get_random_number)\"""
+pool_metadata_line2='"description": "Test DB-Sync"'
+pool_metadata_line3="\"ticker\": \"QA_"$(get_random_number)\"""
+pool_metadata_line4='"homepage": "http://artur_pool.pl/"'
+
+https://gist.githubusercontent.com/ArturWieczorek/7fa86076bc660a197f4fa344c45f2ae2/raw/effb92fd28dad388f37755aba74b423372907c95/test_pool.json
+
+URL Shortener:
+
+https://bit.ly/3lLlte3
+
+
+Get the hash of your metadata JSON file:
+
+cardano-cli stake-pool metadata-hash --pool-metadata-file metadata.json
+4e5fd87b15dd0cc821bdcd1fd15291ff1927446c8a61b428394b9b3ffc21c1c6
+
+
+
+Generate Stake pool registration certificate
+
+from config:
+"poolDeposit": 500000000,
+"minPoolCost": 340000000,
+"keyDeposit": 2000000,
+
+cardano-cli stake-pool registration-certificate \
+--cold-verification-key-file cold.vkey \
+--vrf-verification-key-file vrf.vkey \
+--pool-pledge 500000000000 \
+--pool-cost 666000000 \
+--pool-margin 1 \
+--pool-reward-account-verification-key-file ../keys/stake2.vkey \
+--pool-owner-stake-verification-key-file ../keys/stake2.vkey \
+--testnet-magic 12 \
+--pool-relay-ipv4 127.0.0.1 \
+--pool-relay-port 4242 \
+--metadata-url https://bit.ly/3lLlte3 \
+--metadata-hash 4e5fd87b15dd0cc821bdcd1fd15291ff1927446c8a61b428394b9b3ffc21c1c6 \
+--out-file pool-registration.cert
+
+
+
+Generate delegation certificate pledge
+To honor your pledge, create a delegation certificate:
+
+cardano-cli stake-address delegation-certificate \
+--stake-verification-key-file ../keys/stake2.vkey \
+--cold-verification-key-file cold.vkey \
+--out-file delegation.cert
+
+
+
+Submit the pool certificate and delegation certificate to the blockchain
+
+cardano-cli query utxo --address $(cat ../keys/payment.addr) --testnet-magic 3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+2734218593c5eabecce7014607964e8599cdcd1c08394173c6eda4a623c5abee     0        889954503990 lovelace
+
+
+
+    "poolDeposit": 500000000,
+
+
+expr 889954503990 - 500000000 - 200000
+889454303990
+
+
+cardano-cli query tip --testnet-magic 3
+{
+    "blockNo": 11042,
+    "headerHash": "162bc86fa5364180362322dc15a54f8d630145ce97b5eec5429fc59f0a3638fa",
+    "slotNo": 214500
+}
+
+
+Build the transaction:
+
+cardano-cli transaction build-raw --allegra-era \
+--tx-in 2734218593c5eabecce7014607964e8599cdcd1c08394173c6eda4a623c5abee#0 \
+--tx-out $(cat ../keys/payment.addr)+889454303990 \
+--fee 200000 \
+--out-file tx001.raw \
+--certificate-file pool-registration.cert \
+--certificate-file delegation.cert
+
+Sign the transaction:
+
+cardano-cli transaction sign \
+--tx-body-file tx001.raw \
+--signing-key-file ../keys/payment.skey \
+--signing-key-file ../keys/stake2.skey \
+--signing-key-file cold.skey \
+--testnet-magic 3 \
+--out-file tx001.signed
+
+Submit the transaction:
+
+cardano-cli transaction submit \
+--tx-file tx001.signed \
+--testnet-magic 3
+
+Verify that your stake pool registration was successful.
+Get Pool ID
+
+cardano-cli stake-pool id --cold-verification-key-file cold.vkey
+pool1gaxyt77nzay7fcft3qnle7x450h00tge22689h93xadx70lzwlv
+
+
+shelleyqa=# select * from tx where hash='\x91b4f49353dcd4d6a3c66f06a4f09dee4d5fc08854960ffc2a17c6ddc49abefc';
+  id   |                                hash                                | block_id | block_index |   out_sum    |  fee   |  deposit  | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+--------------+--------+-----------+------+----------------+-------------------
+ 21675 | \x91b4f49353dcd4d6a3c66f06a4f09dee4d5fc08854960ffc2a17c6ddc49abefc |   476889 |           0 | 889454303990 | 200000 | 500000000 |  707 |                |
+(1 row)
+
+
+
+shelleyqa=# select * from pool_hash where view = 'pool1gaxyt77nzay7fcft3qnle7x450h00tge22689h93xadx70lzwlv';
+ id |                          hash_raw                          |                           view
+----+------------------------------------------------------------+----------------------------------------------------------
+ 10 | \x474c45fbd31749e4e12b8827fcf8d5a3eef7ad1952b472dcb1375a6f | pool1gaxyt77nzay7fcft3qnle7x450h00tge22689h93xadx70lzwlv
+(1 row)
+
+
+
+
+cardano-cli query ledger-state --testnet-magic 3 --allegra-era | grep 474c45fbd31749e4e12b8827fcf8d5a3eef7ad1952b472dcb1375a6f
+                            "474c45fbd31749e4e12b8827fcf8d5a3eef7ad1952b472dcb1375a6f"
+                        "474c45fbd31749e4e12b8827fcf8d5a3eef7ad1952b472dcb1375a6f": {
+                            "publicKey": "474c45fbd31749e4e12b8827fcf8d5a3eef7ad1952b472dcb1375a6f",
+
+
+
+shelleyqa=# select * from pool_meta_data where registered_tx_id = 21675;
+ id |          url           |                                hash                                | registered_tx_id
+----+------------------------+--------------------------------------------------------------------+------------------
+ 11 | https://bit.ly/3lLlte3 | \x4e5fd87b15dd0cc821bdcd1fd15291ff1927446c8a61b428394b9b3ffc21c1c6 |            21675
+(1 row)
+
+
+
+
+shelleyqa=# select * from pool_owner where registered_tx_id = 21675;
+ id |                            hash                            | pool_hash_id | registered_tx_id
+----+------------------------------------------------------------+--------------+------------------
+ 14 | \x930668b12301e71b03911f327588dfa089bcc8f5463b09aafa301aca |           10 |            21675
+(1 row)
+
+
+
+
+  select * from pool_relay;
+   id | update_id |   ipv4    | ipv6 | dns_name | dns_srv_name | port
+  ----+-----------+-----------+------+----------+--------------+------
+   13 |        14 | 127.0.0.1     |      |                                       |              | 4242
+
+
+
+START NODES:
+
+R:
+
+cardano-node run \
+--topology relay/shelley_qa-topology.json \
+--database-path relay/db-relay \
+--socket-path relay/node.socket \
+--host-addr 127.0.0.1 \
+--port 4242 \
+--config shelley_qa/shelley_qa-config.json
+
+
+P:
+
+cardano-node run \
+--topology pool/shelley_qa-topology.json \
+--database-path pool/db-prod \
+--socket-path pool/node.socket \
+--host-addr 127.0.0.1 \
+--port 4240 \
+--config shelley_qa/shelley_qa-config.json \
+--shelley-kes-key pool-keys/kes.skey \
+--shelley-vrf-key pool-keys/vrf.skey \
+--shelley-operational-certificate pool-keys/node.cert
+
+
+
+)
+
+
+cardano-cli query stake-address-info --testnet-magic 3 --address $(cat ../keys/stake2.addr) --allegra-era
+[
+    {
+        "address": "stake_test1uzfsv693yvq7wxcrjy0nyavgm7sgn0xg74rrkzd2lgcp4jslrh67p",
+        "delegation": "pool1gaxyt77nzay7fcft3qnle7x450h00tge22689h93xadx70lzwlv",
+        "rewardAccountBalance": 0
+    }
+]
+
+
+shelleyqa=# select * from delegation where addr_id=64;
+ id | addr_id | cert_index | pool_hash_id | active_epoch_no | tx_id
+----+---------+------------+--------------+-----------------+-------
+ 28 |      64 |          1 |           10 |            1382 | 21675
+
+
+
+cardano-cli query stake-distribution --testnet-magic 3 --allegra-era
+                           PoolId                                 Stake frac
+------------------------------------------------------------------------------
+pool1xtqm3meg8szycp88rcgm54hk0zz92eeva3re0lm9avzmsqg4u7r   2.222e-6
+
+
+
+
+RETIRE:
+
+cardano-cli stake-pool deregistration-certificate \
+--cold-verification-key-file cold.vkey \
+--epoch 33 \
+--out-file pool.deregistration
+
+cardano-cli query utxo --address $(cat ../keys/payment.addr) --testnet-magic 12 --allegra-era
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+6a75fcb7808f30cf76923b52e3cb699a3b66262590725549d28ec01adf0b78b4     0           1000000
+7bf6d6f4ef9209bcd5934f6e02cd812a7735067c17934336967521a962f4666c     0           1000000
+852ca73ae3fcf013954891cf0419ad3004d9bce6c0a069e406ed4b60e632d4ce     0           2827415
+b3b41fb31be238c6302d3c25c1a7d4db64771f524bfb5abab879aaf05c008d91     0      889484924054
+
+
+cardano-cli transaction build-raw \
+--tx-in b3b41fb31be238c6302d3c25c1a7d4db64771f524bfb5abab879aaf05c008d91#0 \
+--tx-out $(cat ../keys/payment.addr)+0 \
+--ttl 0 \
+--fee 0 \
+--out-file tx.draft \
+--certificate-file pool.deregistration
+
+
+cardano-cli transaction calculate-min-fee \
+--tx-body-file tx.draft \
+--tx-in-count 1 \
+--tx-out-count 1 \
+--witness-count 1 \
+--byron-witness-count 0 \
+--testnet-magic 12 \
+--protocol-params-file ../keys/protocol.json
+
+172585 Lovelace
+
+expr 889484924054 - 172585
+889484751469
+
+cardano-cli transaction build-raw \
+--tx-in b3b41fb31be238c6302d3c25c1a7d4db64771f524bfb5abab879aaf05c008d91#0 \
+--tx-out $(cat ../keys/payment.addr)+889484751469 \
+--ttl 860000 \
+--fee 172585 \
+--out-file tx.raw \
+--certificate-file pool.deregistration
+
+
+cardano-cli transaction sign \
+--tx-body-file tx.raw \
+--signing-key-file ../keys/payment.skey \
+--signing-key-file cold.skey \
+--testnet-magic 12 \
+--out-file tx.signed
+
+And submit to the blockchain:
+
+cardano-cli transaction submit \
+--tx-file tx.signed \
+--testnet-magic 12
+
+
+allegra=# select * from pool_retire;
+ id | hash_id | cert_index | announced_tx_id | retiring_epoch
+----+---------+------------+-----------------+----------------
+  1 |       2 |          0 |              70 |             32
+  2 |       1 |          0 |              72 |             33
+
+=======================================================================================================================================
+deregistration of stake 3 address:
+
+
+cardano-cli stake-address deregistration-certificate --stake-verification-key-file stake3.vkey --out-file stake3-dereg.cert
+
+cardano-cli query utxo --address $(cat ../keys/payment.addr) --testnet-magic 3 --allegra-era
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+91b4f49353dcd4d6a3c66f06a4f09dee4d5fc08854960ffc2a17c6ddc49abefc     0        889454303990 lovelace
+
+
+cardano-cli transaction build-raw \
+--tx-in d1760f96da39536d8cfe97a1910de34b90136ab83b7bad11ef73868135f0c3b7#0 \
+--tx-out $(cat payment.addr)+0 \
+--ttl 0 \
+--fee 0 \
+--out-file tx.raw \
+--certificate-file stake3-dereg.cert
+
+cardano-cli transaction calculate-min-fee \
+--tx-body-file tx.raw \
+--tx-in-count 1 \
+--tx-out-count 1 \
+--witness-count 1 \
+--byron-witness-count 0 \
+--testnet-magic 12 \
+--protocol-params-file protocol.json
+
+172585 Lovelace
+
+
+expr 1000000 + 2000000 - 172585
+2827415
+
+
+cardano-cli query tip --testnet-magic 12
+{
+    "blockNo": 11543,
+    "headerHash": "8b8f8728e3c0db378ad5c266f1e3511ef69db10e1a41d8439c9506298c2ceebd",
+    "slotNo": 224520
+}
+
+
+Build the transaction:
+
+cardano-cli transaction build-raw --shelley-era \
+--tx-in d1760f96da39536d8cfe97a1910de34b90136ab83b7bad11ef73868135f0c3b7#0 \
+--tx-out $(cat ../keys/payment.addr)+2827415 \
+--ttl 244520 \
+--fee 172585 \
+--out-file tx001.raw \
+--certificate-file stake3-dereg.cert
+
+Sign the transaction:
+
+cardano-cli transaction sign \
+--tx-body-file tx001.raw \
+--signing-key-file payment.skey \
+--signing-key-file stake3.skey \
+--testnet-magic 12 \
+--out-file tx001.signed
+
+Submit the transaction:
+
+cardano-cli transaction submit \
+--tx-file tx001.signed \
+--testnet-magic 12
+
+allegra=# select * from tx where id=71;
+ id |                                hash                                | block_id | block_index | out_sum |  fee   | deposit  | size | invalid_before | invalid_hereafter
+----+--------------------------------------------------------------------+----------+-------------+---------+--------+----------+------+----------------+-------------------
+ 71 | \x852ca73ae3fcf013954891cf0419ad3004d9bce6c0a069e406ed4b60e632d4ce |    11573 |           0 | 2827415 | 172585 | -2000000 |  154 |         244520 |            244520
+(1 row)
+
+
+
+
+//////////
+
+
+{"NestedData": {"Nested": "True"}}                               |    47 | \xa10aa16a4e657374656444617461a1664e65737465646454727565
+{"NestedData": {"Nested": "True"}}                               |    48 | \xa10aa16a4e657374656444617461a1664e65737465646454727565

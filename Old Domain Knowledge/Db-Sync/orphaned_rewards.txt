@@ -1,0 +1,346 @@
+PGPASSFILE=config/pgpass-mainnet-orphaned-rewards  db-sync-node-extended/bin/cardano-db-sync-extended \
+    --config config/mainnet-config.yaml \
+    --socket-path ../cardano-node/state-node-mainnet/node.socket \
+    --schema-dir schema/ \
+    --state-dir ledger-state/mainnet
+
+
+    stake address had been de-registered after the epoc
+
+    h started but before the rewards is distributed.
+
+
+
+    If a credential is de-registered in epoch 52, then it will receive rewards on the 52 / 53 boundary (coming from the snapshot taken on the 50 / 51 boundary) and it will also receive rewards on the 53 / 54 boundary (coming from the snapshot taken on the 51 / 52 boundary).
+
+
+===========================================================================================
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic 3
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+27ec87b571d993868ced286ab6005556f6e8c407848c03ea9624d855d06e2b28     0        1000000000 lovelace
+
+
+
+    Submit the certificate with a transaction:
+
+    cardano-cli transaction build-raw \
+    --tx-in 27ec87b571d993868ced286ab6005556f6e8c407848c03ea9624d855d06e2b28#0 \
+    --tx-out $(cat payment.addr)+995800000 \
+    --fee 2200000 \
+    --out-file tx_reg_stake.raw \
+    --certificate-file stake.cert
+
+    Sign it:
+
+    cardano-cli transaction sign \
+    --tx-body-file tx_reg_stake.raw \
+    --signing-key-file payment.skey \
+    --signing-key-file stake.skey \
+    --testnet-magic 3 \
+    --out-file tx_reg_stake.signed
+
+
+    And submit it:
+
+
+    cardano-cli transaction submit \
+    --tx-file tx_reg_stake.signed \
+    --testnet-magic 3
+    Transaction successfully submitted.
+
+
+    cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic 3
+                               TxHash                                 TxIx        Amount
+    --------------------------------------------------------------------------------------
+    ab7c8591fc962607c40b7aafac6527c082f086c5da20c29552a929b9e6952744     0        995800000 lovelace
+
+
+
+Generate delegation certificate pledge
+To honor your pledge, create a delegation certificate:
+
+    cardano-cli stake-address delegation-certificate \
+    --stake-verification-key-file stake.vkey \
+    --stake-pool-id pool1s5tl5uzzew2ffqvgv8znepmcpdyhts9agqhrakz3dz4xvfs049l \
+    --out-file delegation.cert
+
+
+
+Submit the pool certificate and delegation certificate to the blockchain
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic 3
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+ab7c8591fc962607c40b7aafac6527c082f086c5da20c29552a929b9e6952744     0        995800000 lovelace
+
+
+expr 995800000 - 200000
+995600000
+
+cardano-cli query tip --testnet-magic 3
+{
+    "blockNo": 11042,
+    "headerHash": "162bc86fa5364180362322dc15a54f8d630145ce97b5eec5429fc59f0a3638fa",
+    "slotNo": 214500
+}
+
+
+Build the transaction:
+
+cardano-cli transaction build-raw \
+--tx-in ab7c8591fc962607c40b7aafac6527c082f086c5da20c29552a929b9e6952744#0 \
+--tx-out $(cat payment.addr)+995600000 \
+--fee 200000 \
+--out-file delegation_tx.raw \
+--certificate-file delegation.cert
+
+Sign the transaction:
+
+cardano-cli transaction sign \
+--tx-body-file delegation_tx.raw \
+--signing-key-file payment.skey \
+--signing-key-file stake.skey \
+--testnet-magic 3 \
+--out-file delegation_tx.signed
+
+Submit the transaction:
+
+cardano-cli transaction submit \
+--tx-file delegation_tx.signed \
+--testnet-magic 3
+
+Transaction successfully submitted.
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic 3
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+47ba267adf4afa9734f9f461a16913bbd06715a22c5139378e9f0ed6c1e762cf     0        995600000 lovelace
+
+
+
+shelley_qa_tag_10=# select * from tx where hash='\x47ba267adf4afa9734f9f461a16913bbd06715a22c5139378e9f0ed6c1e762cf';
+  id   |                                hash                                | block_id | block_index |  out_sum  |  fee   | deposit | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+-----------+--------+---------+------+----------------+-------------------
+ 27142 | \x47ba267adf4afa9734f9f461a16913bbd06715a22c5139378e9f0ed6c1e762cf |  1297855 |           0 | 995600000 | 200000 |       0 |  385 |                |
+(1 row)
+
+
+shelley_qa_tag_10=# select * from delegation where tx_id=27142;
+ id  | addr_id | cert_index | pool_hash_id | active_epoch_no | tx_id | slot_no
+-----+---------+------------+--------------+-----------------+-------+----------
+ 285 |    2829 |          0 |            3 |            3820 | 27142 | 27476134
+(1 row)
+
+
+shelley_qa_tag_10=# select delegation.active_epoch_no, pool_hash.view from delegation
+    inner join stake_address on delegation.addr_id = stake_address.id
+    inner join pool_hash on delegation.pool_hash_id = pool_hash.id
+    where stake_address.view = 'stake_test1uzqeqvcjqlkwml90gjp5pk9mss655r5v9pvc9gkhlx9mydqrpmwv6'
+    order by active_epoch_no asc;
+ active_epoch_no |                           view
+-----------------+----------------------------------------------------------
+            3820 | pool1s5tl5uzzew2ffqvgv8znepmcpdyhts9agqhrakz3dz4xvfs049l
+(1 row)
+
+
+
+shelley_qa_tag_10=# select * from reward where addr_id=2829;
+  id   | addr_id |  type  | amount | epoch_no | pool_id
+-------+---------+--------+--------+----------+---------
+ 68605 |    2829 | member | 121039 |     3820 |       3
+ 68635 |    2829 | member |  99125 |     3821 |       3
+ 68664 |    2829 | member | 109972 |     3822 |       3
+ 68693 |    2829 | member |  95739 |     3823 |       3
+ 68723 |    2829 | member | 109854 |     3824 |       3
+ 68753 |    2829 | member | 111134 |     3825 |       3
+(6 rows)
+
+
+ORPHANED REWARDS BEFORE DEREG:
+
+shelley_qa_tag_10=# select * from orphaned_reward;
+ id | addr_id |  type  |   amount   | epoch_no | pool_id
+----+---------+--------+------------+----------+---------
+  1 |     576 | leader | 3637870883 |     2363 |      78
+  2 |     573 | leader | 4547338604 |     2363 |      77
+(2 rows)
+
+Can't deregister with rewards:
+
+cardano-cli transaction submit \
+> --tx-file stake-dereg-tx.signed \
+> --testnet-magic 3
+Command failed: transaction submit  Error: Error while submitting tx: ShelleyTxValidationError ShelleyBasedEraMary (ApplyTxError [UtxowFailure (UtxoFailure (ValueNotConservedUTxO (Value 997600000 (fromList [])) (Value 995264271 (fromList [])))),DelegsFailure (DelplFailure (DelegFailure (StakeKeyNonZeroAccountBalanceDELEG (Just (Coin 535729)))))])
+
+
+cardano-cli stake-address deregistration-certificate --stake-verification-key-file stake.vkey --out-file stake-dereg.cert
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic 3
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+47ba267adf4afa9734f9f461a16913bbd06715a22c5139378e9f0ed6c1e762cf     0        995600000 lovelace
+
+
+
+cardano-cli query stake-address-info --testnet-magic 3 --address $(cat stake.addr)
+[
+    {
+        "address": "stake_test1uzqeqvcjqlkwml90gjp5pk9mss655r5v9pvc9gkhlx9mydqrpmwv6",
+        "rewardAccountBalance": 646863,
+        "delegation": "pool1s5tl5uzzew2ffqvgv8znepmcpdyhts9agqhrakz3dz4xvfs049l"
+    }
+]
+
+
+shelley_qa_tag_10=# select * from reward where addr_id=2829;
+  id   | addr_id |  type  | amount | epoch_no | pool_id
+-------+---------+--------+--------+----------+---------
+ 68605 |    2829 | member | 121039 |     3820 |       3
+ 68635 |    2829 | member |  99125 |     3821 |       3
+ 68664 |    2829 | member | 109972 |     3822 |       3
+ 68693 |    2829 | member |  95739 |     3823 |       3
+ 68723 |    2829 | member | 109854 |     3824 |       3
+ 68753 |    2829 | member | 111134 |     3825 |       3
+(6 rows)
+
+
+shelley_qa_tag_10=# select sum(amount) from reward where addr_id=2829;
+  sum
+--------
+ 646863
+(1 row)
+
+cardano-cli query tip --testnet-magic 3
+{
+    "epoch": 3827,
+    "hash": "491fbb0da777821738a97630ab8917d4d04eabbf6044bddf96d0f7a5c6faff99",
+    "slot": 27545152,
+    "block": 1301219,
+    "era": "Mary"
+}
+
+
+expr 995600000 - 200000 + 646863
+
+
+cardano-cli transaction build-raw \
+--tx-in 47ba267adf4afa9734f9f461a16913bbd06715a22c5139378e9f0ed6c1e762cf#0 \
+--tx-out $(cat payment.addr)+996046863 \
+--withdrawal $(cat stake.addr)+646863 \
+--fee 200000 \
+--out-file withdraw_rewards.raw
+
+
+cardano-cli transaction sign \
+--tx-body-file withdraw_rewards.raw  \
+--signing-key-file payment.skey \
+--signing-key-file stake.skey \
+--testnet-magic 3 \
+--out-file withdraw_rewards.signed
+
+
+cardano-cli transaction submit \
+--tx-file withdraw_rewards.signed \
+--testnet-magic 3
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic 3
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+fda0900031df2ff3fb40f00dfe2b1d50f2517f3a3535f7cf8e2fcb7015d3ce15     0        996046863 lovelace
+
+
+
+
+shelley_qa_tag_10=# select * from stake_address where id=2829;
+  id  |                           hash_raw                           |                               view                               | registered_tx_id
+------+--------------------------------------------------------------+------------------------------------------------------------------+------------------
+ 2829 | \xe08190331207ecedfcaf448340d8bb84354a0e8c285982a2d7f98bb234 | stake_test1uzqeqvcjqlkwml90gjp5pk9mss655r5v9pvc9gkhlx9mydqrpmwv6 |            27140
+(1 row)
+
+
+
+Deregister:
+
+expr 996046863 + 2000000 - 200000
+997846863
+
+Build the transaction:
+
+cardano-cli transaction build-raw \
+--tx-in fda0900031df2ff3fb40f00dfe2b1d50f2517f3a3535f7cf8e2fcb7015d3ce15#0 \
+--tx-out $(cat payment.addr)+997846863 \
+--fee 200000 \
+--out-file stake-dereg-tx.raw \
+--certificate-file stake-dereg.cert
+
+Sign the transaction:
+
+cardano-cli transaction sign \
+--tx-body-file stake-dereg-tx.raw \
+--signing-key-file payment.skey \
+--signing-key-file stake.skey \
+--testnet-magic 3 \
+--out-file stake-dereg-tx.signed
+
+Submit the transaction:
+
+cardano-cli transaction submit \
+--tx-file stake-dereg-tx.signed \
+--testnet-magic 3
+
+Transaction successfully submitted.
+Epoch 3827
+
+shelley_qa_tag_10=# select * from stake_deregistration where addr_id=2829;
+ id  | addr_id | cert_index | tx_id
+-----+---------+------------+-------
+ 238 |    2829 |          0 | 27144
+(1 row)
+
+shelley_qa_tag_10=# select * from tx where id=27144;
+  id   |                                hash                                | block_id | block_index |  out_sum  |  fee   | deposit  | size | invalid_before | invalid_hereafter
+-------+--------------------------------------------------------------------+----------+-------------+-----------+--------+----------+------+----------------+-------------------
+ 27144 | \xc6d51b157281c1971126b13f6321414c0b4457728c36e00a114abda20fc750ab |  1301106 |           0 | 997846863 | 200000 | -2000000 |  355 |                |
+(1 row)
+
+
+
+
+cardano-cli query utxo --address "$(cat payment.addr)" --testnet-magic 3
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+c6d51b157281c1971126b13f6321414c0b4457728c36e00a114abda20fc750ab     0        997846863 lovelace
+
+
+
+cardano-cli query stake-address-info --testnet-magic 3 --address $(cat stake.addr)
+[]
+
+
+shelley_qa_tag_10=# select * from reward where addr_id=2829;
+  id   | addr_id |  type  | amount | epoch_no | pool_id
+-------+---------+--------+--------+----------+---------
+ 68605 |    2829 | member | 121039 |     3820 |       3
+ 68635 |    2829 | member |  99125 |     3821 |       3
+ 68664 |    2829 | member | 109972 |     3822 |       3
+ 68693 |    2829 | member |  95739 |     3823 |       3
+ 68723 |    2829 | member | 109854 |     3824 |       3
+ 68753 |    2829 | member | 111134 |     3825 |       3
+(6 rows)
+
+shelley_qa_tag_10=# select * from orphaned_reward;
+ id | addr_id |  type  |   amount   | epoch_no | pool_id
+----+---------+--------+------------+----------+---------
+  1 |     576 | leader | 3637870883 |     2363 |      78
+  2 |     573 | leader | 4547338604 |     2363 |      77
+(2 rows)
+
+
+////////////////
+
+psql:/tmp/db-sync-snapshot-QeWROcuKhK/db-sync-snapshot-schema-10-block-5915608-x86_64.sql:96515925: ERROR:  role "cexplorer" does not exist

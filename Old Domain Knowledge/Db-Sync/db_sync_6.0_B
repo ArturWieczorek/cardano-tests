@@ -1,0 +1,267 @@
+cardano-cli shelley address key-gen \
+--verification-key-file payment2.vkey \
+--signing-key-file payment2.skey
+
+
+cardano-cli shelley stake-address key-gen \
+--verification-key-file stake2.vkey \
+--signing-key-file stake2.skey
+
+
+
+cardano-cli shelley address build \
+--payment-verification-key-file payment2.vkey \
+--stake-verification-key-file stake2.vkey \
+--out-file payment2.addr \
+--testnet-magic 3
+
+
+cardano-cli shelley stake-address build \
+--stake-verification-key-file stake2.vkey \
+--out-file stake2.addr \
+--testnet-magic 3
+
+
+shelley-test=# select * from stake_address where view = 'stake_test1upazx78hcqpwta7nvfx9wmnt8fhglxqsrgvkc9274zm09gg5qxv72';
+ id | hash_raw | view | registered_tx_id
+----+----------+------+------------------
+(0 rows)
+
+shelley-test=# select * from stake_registration;
+ id | addr_id | cert_index | tx_id
+----+---------+------------+-------
+  1 |       1 |          0 |     3
+  2 |       2 |          1 |     3
+  3 |       3 |          0 |     4
+  4 |       4 |          1 |     4
+  5 |       5 |          0 |     5
+  6 |       6 |          1 |     5
+  7 |      10 |          0 |   111
+  8 |       9 |          1 |   112
+  9 |      14 |          0 |   120
+ 10 |      13 |          0 |   124
+ 11 |      18 |          0 | 18292
+ 12 |      19 |          0 | 18355
+ 13 |      20 |          0 | 18364
+ 14 |      25 |          0 | 18827
+ 15 |      28 |          0 | 18835
+ 16 |      35 |          0 | 18850
+ 17 |      38 |          0 | 18851
+(17 rows)
+
+
+
+cardano-cli shelley query utxo \
+--address $(cat payment2.addr) \
+--testnet-magic 3
+
+
+cardano-cli shelley query utxo \
+  --address $(cat ../payment.addr) \
+  --testnet-magic 3
+
+
+
+  cardano-cli shelley query utxo \
+  >   --address $(cat ../payment.addr) \
+  >   --testnet-magic 3
+                             TxHash                                 TxIx        Lovelace
+  ----------------------------------------------------------------------------------------
+  32a73e9f864284d24dce2b391c66fbe33ffbead083ceffff3e24edb5770e7b21     0      989995478769
+
+
+
+  cardano-cli shelley transaction build-raw \
+  --tx-in 32a73e9f864284d24dce2b391c66fbe33ffbead083ceffff3e24edb5770e7b21#0 \
+  --tx-out $(cat payment2.addr)+0 \
+  --tx-out $(cat ../payment.addr)+0 \
+  --ttl 0 \
+  --fee 0 \
+  --out-file tx.draft
+
+989995478769 - 176061 - 100000000
+989895302708
+
+  cardano-cli shelley transaction build-raw \
+  --tx-in 32a73e9f864284d24dce2b391c66fbe33ffbead083ceffff3e24edb5770e7b21#0 \
+  --tx-out $(cat payment2.addr)+100000000 \
+  --tx-out $(cat ../payment.addr)+989895302708 \
+  --ttl 6405240 \
+  --fee 176061 \
+  --out-file tx001.raw
+
+
+
+  cardano-cli shelley transaction sign \
+  --tx-body-file tx001.raw \
+  --signing-key-file ../payment.skey \
+  --testnet-magic 3 \
+  --out-file tx001.signed
+
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file tx001.signed \
+  --testnet-magic 3 \
+
+
+cardano-cli shelley query utxo \
+--address $(cat payment2.addr) \
+--testnet-magic 3
+                             TxHash                                 TxIx        Lovelace
+  ----------------------------------------------------------------------------------------
+  9fd36bde94c520ad9912ddf10f2e859f63c1dce2d31e78ddbc83e31e6b48ec10     0         100000000
+
+
+  shelley-test=# select * from stake_address where view = 'stake_test1upazx78hcqpwta7nvfx9wmnt8fhglxqsrgvkc9274zm09gg5qxv72';
+   id |                           hash_raw                           |                               view                               | registered_tx_id
+  ----+--------------------------------------------------------------+------------------------------------------------------------------+------------------
+   39 | \xe07a2378f7c002e5f7d3624c576e6b3a6e8f98101a196c155ea8b6f2a1 | stake_test1upazx78hcqpwta7nvfx9wmnt8fhglxqsrgvkc9274zm09gg5qxv72 |            18853
+
+
+   shelley-test=# select * from stake_registration;
+    id | addr_id | cert_index | tx_id
+   ----+---------+------------+-------
+     1 |       1 |          0 |     3
+     2 |       2 |          1 |     3
+     3 |       3 |          0 |     4
+     4 |       4 |          1 |     4
+     5 |       5 |          0 |     5
+     6 |       6 |          1 |     5
+     7 |      10 |          0 |   111
+     8 |       9 |          1 |   112
+     9 |      14 |          0 |   120
+    10 |      13 |          0 |   124
+    11 |      18 |          0 | 18292
+    12 |      19 |          0 | 18355
+    13 |      20 |          0 | 18364
+    14 |      25 |          0 | 18827
+    15 |      28 |          0 | 18835
+    16 |      35 |          0 | 18850
+    17 |      38 |          0 | 18851
+   (17 rows)
+
+
+
+   shelley-test=# select * from tx where id =18853;
+     id   |                                hash                                | block_id | block_index |   out_sum    |  fee   | deposit | size
+   -------+--------------------------------------------------------------------+----------+-------------+--------------+--------+---------+------
+    18853 | \x9fd36bde94c520ad9912ddf10f2e859f63c1dce2d31e78ddbc83e31e6b48ec10 |   310607 |           0 | 989995302708 | 176061 |       0 |  293
+   (1 row)
+
+
+
+
+
+
+   select tx_out.* from tx_out
+                 inner join tx_in on tx_out.tx_id = tx_in.tx_out_id
+                 inner join tx on tx.id = tx_in.tx_in_id and tx_in.tx_out_index = tx_out.index
+                 where tx.hash = '\x9fd36bde94c520ad9912ddf10f2e859f63c1dce2d31e78ddbc83e31e6b48ec10';
+
+
+                 id   | tx_id | index |                                                   address                                                    |                                                     address_raw                                                      |                        payment_cred                        | stake_address_id |    value
+              --------+-------+-------+--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+------------------+--------------
+               126076 | 18851 |     0 | addr_test1qrpqdmxcra2uzp9cn5p8xsa78f4mqj9q83rze8ffv8xna9uyj05vjd6ljh8ujeurlugpgqyjnehpfaqsamncdlatvv9s7thra8 | \x00c206ecd81f55c104b89d027343be3a6bb048a03c462c9d2961cd3e978493e8c9375f95cfc96783ff101400929e6e14f410eee786ffab630b | \xc206ecd81f55c104b89d027343be3a6bb048a03c462c9d2961cd3e97 |               35 | 989995478769
+              (1 row)
+
+
+              cardano-cli shelley query utxo \
+              --address $(cat payment2.addr) \
+              --testnet-magic 3
+                                           TxHash                                 TxIx        Lovelace
+                ----------------------------------------------------------------------------------------
+                9fd36bde94c520ad9912ddf10f2e859f63c1dce2d31e78ddbc83e31e6b48ec10     0         100000000
+
+
+cardano-cli shelley transaction build-raw \
+  --tx-in 9fd36bde94c520ad9912ddf10f2e859f63c1dce2d31e78ddbc83e31e6b48ec10#0 \
+  --tx-out $(cat ../payment.addr)+0 \
+  --tx-out $(cat payment2.addr)+0 \
+  --ttl 0 \
+  --fee 0 \
+  --out-file tx.draft
+
+100000000 - 176061 - 7000000
+92823939
+
+  cardano-cli shelley transaction build-raw \
+  --tx-in 9fd36bde94c520ad9912ddf10f2e859f63c1dce2d31e78ddbc83e31e6b48ec10#0 \
+  --tx-out $(cat ../payment.addr)+7000000 \
+  --tx-out $(cat payment2.addr)+92823939 \
+  --ttl 6405240 \
+  --fee 176061 \
+  --out-file tx001.raw
+
+
+
+  cardano-cli shelley transaction sign \
+  --tx-body-file tx001.raw \
+  --signing-key-file payment2.skey \
+  --testnet-magic 3 \
+  --out-file tx001.signed
+
+
+
+  cardano-cli shelley transaction submit \
+  --tx-file tx001.signed \
+  --testnet-magic 3
+
+
+cardano-cli shelley query utxo \
+--address $(cat payment2.addr) \
+--testnet-magic 3
+
+
+cardano-cli shelley query utxo --address $(cat payment2.addr) --testnet-magic 3
+                           TxHash                                 TxIx        Lovelace
+----------------------------------------------------------------------------------------
+bae44f9302e66419d455862e925e39d19f382fd60295925fc44cc96662b45357     1          92823939
+
+
+id   | tx_id | index |                                                   address                                                    |                                                     address_raw                                                      |                        payment_cred                        | stake_address_id |   value
+--------+-------+-------+--------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------+------------------+-----------
+ 126079 | 18853 |     0 | addr_test1qqdurwftxt9047xxxtt0u3f9z2fdpen9lwxcf8u4tceujut6ydu00sqzuhmaxcjv2ahxkwnw37vpqxseds24a29k72sslwcyq0 | \x001bc1b92b32cafaf8c632d6fe45251292d0e665fb8d849f955e33c9717a2378f7c002e5f7d3624c576e6b3a6e8f98101a196c155ea8b6f2a1 | \x1bc1b92b32cafaf8c632d6fe45251292d0e665fb8d849f955e33c971 |               39 | 100000000
+(1 row)
+
+
+shelley-test=# select * from stake_address where id = 39;
+ id |                           hash_raw                           |                               view                               | registered_tx_id
+----+--------------------------------------------------------------+------------------------------------------------------------------+------------------
+ 39 | \xe07a2378f7c002e5f7d3624c576e6b3a6e8f98101a196c155ea8b6f2a1 | stake_test1upazx78hcqpwta7nvfx9wmnt8fhglxqsrgvkc9274zm09gg5qxv72 |            18853
+(1 row)
+
+
+
+shelley-test=# select * from tx where id =18846;
+  id   |                                hash                                | block_id | block_index |    out_sum    |  fee   | deposit | size
+-------+--------------------------------------------------------------------+----------+-------------+---------------+--------+---------+------
+ 18846 | \xafe5dfa4d5c3a3afc35ee8b23889a0f5aa9d5b507e620103a669689f79ad8b1d |   309189 |           0 | 8999999661782 | 168625 |       0 |  297
+
+
+
+
+
+
+ select delegation.active_epoch_no, pool_hash.view from delegation
+               inner join stake_address on delegation.addr_id = stake_address.id
+               inner join pool_hash on delegation.pool_hash_id = pool_hash.id
+               where stake_address.view = 'stake_test1uznwj9nsvvvffgzmp4tsuhnerp0znnuw8ega9a2gtnre22gvg8thr'
+               order by active_epoch_no asc;
+
+
+
+
+               select reward.epoch_no, pool_hash.view as delegated_pool, reward.amount as lovelace
+                             from reward inner join stake_address on reward.addr_id = stake_address.id
+                             inner join pool_hash on reward.pool_id = pool_hash.id
+                             where stake_address.view = 'stake_test1uznwj9nsvvvffgzmp4tsuhnerp0znnuw8ega9a2gtnre22gvg8thr'
+                             order by epoch_no asc ;
+
+
+
+                             select block.block_no, block.epoch_no, pool_hash.view as pool_view
+                                           from block inner join slot_leader on block.slot_leader = slot_leader.id
+                                           inner join pool_hash on slot_leader.pool_hash_id = pool_hash.id
+                                           where block.epoch_no = 220
+                                             and pool_hash.view = 'pool1mwnmrx5kpk0zzay24tpg8zzryqvwlkqf2l8qnhe0hyv4xavq7f5' ;

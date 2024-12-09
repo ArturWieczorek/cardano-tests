@@ -1,0 +1,606 @@
+# run nix shell that has all the needed dependencies
+
+cd cardano-node-tests
+nix flake update --accept-flake-config --override-input cardano-node "github:IntersectMBO/cardano-node/10.1.2"
+
+
+nix develop --accept-flake-config .#venv
+
+source ./prepare_test_env.sh conway
+
+# prepare work dir
+rm -rf dev_workdir
+mkdir -p dev_workdir/tmp
+
+# set the cluster environment
+export CARDANO_NODE_SOCKET_PATH=$PWD/dev_workdir/state-cluster0/bft1.socket TMPDIR=$PWD/dev_workdir/tmp DEV_CLUSTER_RUNNING=1 CLUSTERS_COUNT=1 FORBID_RESTART=1 NO_ARTIFACTS=1
+
+# set db-sync repo location
+export DBSYNC_REPO="/home/artur/Projects/db_sync_13_6_0_1/cardano-db-sync/"
+
+# set cluster env variables
+export CLUSTER_ERA=conway; unset TX_ERA; export COMMAND_ERA=conway PV10=true
+
+export CARDANO_CLI_REV=release/cardano-cli-9.0.0.1
+export DBSYNC_REV=13.6.0.0-pre DBSYNC_SKIP_INDEXES=true
+
+
+
+# generate the cluster scripts
+PYTHONPATH=$PYTHONPATH:$PWD cardano_node_tests/prepare_cluster_scripts.py -s "cardano_node_tests/cluster_scripts/conway_fast" -d dev_workdir/conway_fast
+
+# start db-sync
+sudo service postgresql start
+sudo service postgresql stop
+
+export PGHOST=localhost PGPORT=5434 PGUSER=postgres_dbsync
+
+rm -rf /home/artur/Projects/TestDB/postgres-qa
+./scripts/postgres-start.sh "/home/artur/Projects/TestDB/postgres-qa" -k
+
+
+# start the cluster instance
+./dev_workdir/conway_fast/start-cluster
+
+# stop cluster
+./dev_workdir/conway_fast/stop-cluster
+
+# run some test
+pytest -s -k 'test_transfer_all_funds[submit_cli]' cardano_node_tests/
+pytest -s -k 'test_transfer_funds' cardano_node_tests
+pytest -s -k "test_minting_unicode_asset_name" cardano_node_tests/
+
+Governance - Voltaire:
+pytest -k "test_register_and_resign_committee_member" cardano_node_tests/
+pytest -k "test_register_and_retire_drep" cardano_node_tests/
+pytest -k "test_stake_pool_metadata" cardano_node_tests/ 
+pytest -k "test_stake_pool_not_avail_metadata" cardano_node_tests/ 
+pytest -k "test_reward_addr_delegation" cardano_node_tests/ 
+
+pytest -sk "test_pparam_update" cardano_node_tests/
+pytest -sk "test_treasury_withdrawal" cardano_node_tests/
+pytest -sk "test_transfer_treasury_donation" cardano_node_tests/
+
+
+# query database
+psql -h /home/artur/Projects/TestDB/postgres-qa -U postgres_dbsync -e dbsync0 -p 5434
+
+epoch:
+psql -h /home/artur/Projects/TestDB/postgres-qa -U postgres_dbsync -e dbsync0 -p 5434 -c "select * from epoch"
+
+committee_registration:
+psql -h /home/artur/Projects/TestDB/postgres-qa -U postgres_dbsync -e dbsync0 -p 5434 -c "select * from committee_registration"
+
+memory_maintanance:
+psql -h /home/artur/Projects/TestDB/postgres-qa -U postgres_dbsync -e dbsync0 -p 5434 -c "SHOW ALL" | grep maintenance
+
+
+
+
+# examples of db queries
+
+psql -h /home/artur/Projects/TestDB/postgres-qa -U postgres_dbsync -e dbsync0 -p 5434 -c "select dr.id, dr.tx_id, dr.cert_index, dr.deposit, dr.drep_hash_id, dr.voting_anchor_id, dh.raw, dh.view, dh.has_script from drep_registration as dr inner join drep_hash  dh on dh.id = dr.drep_hash_id where dh.raw = '\x6abda0bbe65881accca9b50466b442a199387afaa781ae817b78793b'"
+select dr.id, dr.tx_id, dr.cert_index, dr.deposit, dr.drep_hash_id, dr.voting_anchor_id, dh.raw, dh.view, dh.has_script from drep_registration as dr inner join drep_hash  dh on dh.id = dr.drep_hash_id where dh.raw = '\x6abda0bbe65881accca9b50466b442a199387afaa781ae817b78793b'
+ id | tx_id | cert_index | deposit  | drep_hash_id | voting_anchor_id |                            raw                             |                           view                           | has_script 
+----+-------+------------+----------+--------------+------------------+------------------------------------------------------------+----------------------------------------------------------+------------
+  1 |    12 |          0 |  2000000 |            1 |                1 | \x6abda0bbe65881accca9b50466b442a199387afaa781ae817b78793b | drep1d276pwlxtzq6en9fk5zxddzz5xvns7h657q6aqtm0punkwt2qs2 | f
+  2 |    13 |          0 | -2000000 |            1 |                  | \x6abda0bbe65881accca9b50466b442a199387afaa781ae817b78793b | drep1d276pwlxtzq6en9fk5zxddzz5xvns7h657q6aqtm0punkwt2qs2 | f
+(2 rows)
+
+
+psql -h /home/artur/Projects/TestDB/postgres-qa -U postgres_dbsync -e dbsync0 -p 5434 -c "select dr.id, dr.tx_id, dr.cert_index, dr.deposit, dr.drep_hash_id, dr.voting_anchor_id, dh.raw, dh.view, dh.has_script, va.url, va.data_hash from drep_registration as dr inner join drep_hash dh on dh.id = dr.drep_hash_id inner join voting_anchor va on va.id=dr.voting_anchor_id  where dh.raw = '\x27497d7db01ce343862ad3d58c6f6eb8b9321d830be394c0f295fd1c'"
+
+select dr.id, dr.tx_id, dr.cert_index, dr.deposit, dr.drep_hash_id, dr.voting_anchor_id, dh.raw, dh.view, dh.has_script, va.url, va.data_hash from drep_registration as dr inner join drep_hash dh on dh.id = dr.drep_hash_id inner join voting_anchor va on va.id=dr.voting_anchor_id  where dh.raw = '\x27497d7db01ce343862ad3d58c6f6eb8b9321d830be394c0f295fd1c'
+
+ id | tx_id | cert_index | deposit | drep_hash_id | voting_anchor_id |                            raw                             |                           view                           | has_script |           url            |                             data_hash                              
+----+-------+------------+---------+--------------+------------------+------------------------------------------------------------+----------------------------------------------------------+------------+--------------------------+--------------------------------------------------------------------
+ 97 |   127 |          0 | 2000000 |           97 |                1 | \x27497d7db01ce343862ad3d58c6f6eb8b9321d830be394c0f295fd1c | drep1yayh6ldsrn358p32602ccmmwhzuny8vrp03efs8jjh73c470pk3 | f          | https://www.the-drep.com | \x592e53f74765c8c6c97dfda2fd6038236ffc7ad55800592118d9e36ad1c8140d
+(1 row)
+
+
+
+# query node tip
+cardano-cli query tip --testnet-magic 42
+
+
+# query ledger params
+cardano-cli conway query ledger-state --testnet-magic 42| jq '.stateBefore.esLState.utxoState.ppups.enactState.curPParams'
+cardano-cli conway query ledger-state --testnet-magic 42| jq '.stateBefore.esLState.utxoState.ppups.enactState.prevPParams'
+cardano-cli conway query ledger-state --testnet-magic 42| jq '.stateBefore.esLState.utxoState.ppups.enactState.curPParams.tau'
+
+
+# query protocol params
+cardano-cli conway query protocol-parameters --testnet-magic 42
+
+
+
+# debugging tests
+from IPython import embed; embed()
+
+
+
+# IMPORTANT - cluster genesis funds address
+cardano-cli query utxo --address $(cat dev_workdir/state-cluster0/shelley/genesis-utxo.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+33f578c9d6b45e1ec28380d754987ffee7f46c4775a95d796df8d7b8a38f5ea5     3        10121999997244683 lovelace + TxOutDatumNone
+
+
+
+# Create keys and addresses
+
+cardano-cli conway address key-gen \
+--verification-key-file payment.vkey \
+--signing-key-file payment.skey
+
+cardano-cli conway stake-address key-gen \
+--verification-key-file stake.vkey \
+--signing-key-file stake.skey
+
+cardano-cli conway address build \
+--payment-verification-key-file payment.vkey \
+--stake-verification-key-file stake.vkey \
+--out-file payment.addr \
+--testnet-magic 42
+
+
+# IMPORTANT - send funds to payment address
+
+cardano-cli conway transaction build \
+--testnet-magic 42 \
+--witness-override 1 \
+--tx-in $(cardano-cli query utxo --address $(cat dev_workdir/state-cluster0/shelley/genesis-utxo.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[0]') \
+--tx-out $(cat payment.addr)+1012199997244 \
+--change-address $(cat dev_workdir/state-cluster0/shelley/genesis-utxo.addr) \
+--out-file tx.raw
+
+
+cardano-cli conway transaction sign \
+--tx-body-file tx.raw \
+--signing-key-file dev_workdir/state-cluster0/shelley/genesis-utxo.skey \
+--signing-key-file stake.skey \
+--testnet-magic 42 \
+--out-file tx.signed
+
+
+cardano-cli conway transaction submit \
+--testnet-magic 42 \
+--tx-file tx.signed
+
+
+# Stake address registration
+
+
+cardano-cli conway stake-address registration-certificate \
+--stake-verification-key-file stake.vkey \
+--key-reg-deposit-amt $(cardano-cli conway query gov-state --testnet-magic 42 | jq .currentPParams.stakeAddressDeposit) \
+--out-file registration.cert
+
+
+cardano-cli conway transaction build \
+--testnet-magic 42 \
+--witness-override 2 \
+--tx-in $(cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[0]') \
+--change-address $(cat payment.addr) \
+--certificate-file registration.cert \
+--out-file tx.raw
+
+
+cardano-cli conway transaction sign \
+--tx-body-file tx.raw \
+--signing-key-file payment.skey \
+--signing-key-file stake.skey \
+--testnet-magic 42 \
+--out-file tx.signed
+
+
+cardano-cli conway transaction submit \
+--testnet-magic 42 \
+--tx-file tx.signed
+
+
+=====================================================
+
+Tokens - Minting native assets
+
+tokenname1=$(echo -n "Testtoken" | xxd -ps | tr -d '\n')
+tokenname2=$(echo -n "SecondTesttoken" | xxd -ps | tr -d '\n')
+tokenamount="10000000"
+output="0"
+
+
+cardano-cli query protocol-parameters  --testnet-magic 42 --out-file protocol.json
+
+
+Generate the policy
+Policies are the defining factor under which tokens can be minted. 
+Only those in possession of the policy keys can mint or burn tokens 
+minted under this specific policy. 
+
+mkdir policy
+cd policy
+
+cardano-cli address key-gen \
+    --verification-key-file policy/policy.vkey \
+    --signing-key-file policy/policy.skey
+
+
+echo "{" > policy/policy.script 
+echo "  \"keyHash\": \"$(cardano-cli address key-hash --payment-verification-key-file policy/policy.vkey)\"," >> policy/policy.script 
+echo "  \"type\": \"sig\"" >> policy/policy.script 
+echo "}" >> policy/policy.script
+
+
+cat policy/policy.script 
+{
+  "keyHash": "19d9c9dc2be8e01b3e634158558cbaee0dec5db0ce96dadeb2482b55",
+  "type": "sig"
+}
+
+
+cardano-cli transaction policyid --script-file ./policy/policy.script > policy/policyID
+
+
+
+cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42                         
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+25e95f687504c35f1238ae091e43bf1ff9b88c0bc60a2cb98ec247feb7c011fd     0        1012199416123 lovelace + TxOutDatumNone
+
+
+policyid=$(cat policy/policyID)
+
+cardano-cli conway transaction build \
+ --testnet-magic 42 \
+ --witness-override 2 \
+ --tx-in $(cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[0]') \
+ --tx-out "$(cat payment.addr) + $output + $tokenamount $policyid.$tokenname1 + $tokenamount $policyid.$tokenname2" \
+ --change-address "$(cat payment.addr)" \
+ --mint "$tokenamount $policyid.$tokenname1 + $tokenamount $policyid.$tokenname2" \
+ --minting-script-file policy/policy.script \
+ --out-file matx.raw
+
+
+Command failed: transaction build  Error: Minimum UTxO threshold not met for tx output: addr_test1qped33cfzp3y6c7hkcun0udk4vs70f527pkrt277lnzyn7qy0hcu9w3rgydvfu7y63vncnch8vfgpnntjyhx7lzcmtcsx8ucfd + 10000000 ae3fa1eb0b637d21f1bfb5aa41d22d93285c2060e0b9f0402e33c5e4.5365636f6e6454657374746f6b656e + 10000000 ae3fa1eb0b637d21f1bfb5aa41d22d93285c2060e0b9f0402e33c5e4.54657374746f6b656e
+Minimum required UTxO: 1267140 Lovelace
+
+
+The error you're encountering indicates that the minimum UTxO 
+(Unspent Transaction Output) threshold for the transaction output is 
+not met. This is a common issue when dealing with multi-asset 
+transactions on Cardano. The UTxO must include enough ADA to meet 
+the minimum required amount, which in your case is 1,267,140 Lovelace 
+(or 1.26714 ADA).
+
+Set output to meet the minimum UTxO requirement.
+
+output=2000000
+
+
+cardano-cli conway transaction build \
+ --testnet-magic 42 \
+ --witness-override 2 \
+ --tx-in $(cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[0]') \
+ --tx-out "$(cat payment.addr) + $output + $tokenamount $policyid.$tokenname1 + $tokenamount $policyid.$tokenname2" \
+ --change-address "$(cat payment.addr)" \
+ --mint "$tokenamount $policyid.$tokenname1 + $tokenamount $policyid.$tokenname2" \
+ --minting-script-file policy/policy.script \
+ --out-file matx.raw
+
+ Estimated transaction fee: Coin 185301
+
+
+ cardano-cli transaction sign  \
+--testnet-magic 42 \
+--signing-key-file payment.skey  \
+--signing-key-file policy/policy.skey  \
+--tx-body-file matx.raw  \
+--out-file matx.signed
+
+
+cardano-cli transaction submit --tx-file matx.signed --testnet-magic 42  
+
+
+cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42 
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+a827b97e2d562a6ccdf28b1082ce380278262599629613eca2e749ebcb6c3a58     0        2000000 lovelace + 10000000 ae3fa1eb0b637d21f1bfb5aa41d22d93285c2060e0b9f0402e33c5e4.5365636f6e6454657374746f6b656e + 10000000 ae3fa1eb0b637d21f1bfb5aa41d22d93285c2060e0b9f0402e33c5e4.54657374746f6b656e + TxOutDatumNone
+a827b97e2d562a6ccdf28b1082ce380278262599629613eca2e749ebcb6c3a58     1        1012197230822 lovelace + TxOutDatumNone
+
+
+Sending tokens to address 2:
+
+cat payment2.addr 
+addr_test1qpwm4g6uscg22syhh62wstphzs043ue0zvtqmjuhgppnu8lwjjt7wsnz28qgv3kmvz37q84unvta4lm5lu40cpfsth6qcn7x73
+
+
+
+cardano-cli conway transaction build \
+ --testnet-magic 42 \
+ --witness-override 1 \
+ --tx-in $(cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[0]') \
+ --tx-in $(cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[1]') \
+ --tx-out "$(cat payment2.addr) + 1267140 + 2 $policyid.$tokenname1" \
+ --tx-out "$(cat payment.addr) + 1267140 + 9999998 $policyid.$tokenname1 + 10000000 $policyid.$tokenname2"  \
+ --change-address "$(cat payment.addr)" \
+ --out-file rec_matx.raw
+
+
+cardano-cli transaction sign  \
+--testnet-magic 42 \
+--signing-key-file payment.skey  \
+--tx-body-file rec_matx.raw  \
+--out-file rec_matx.signed
+
+
+cardano-cli transaction submit --tx-file rec_matx.signed --testnet-magic 42  
+
+
+cardano-cli query utxo --address $(cat payment2.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+f1f9bc983f8ea7a019a2905023175965d7e2e4bd47186cd0fb6e6ee75d0b5323     0        1267140 lovelace + 2 ae3fa1eb0b637d21f1bfb5aa41d22d93285c2060e0b9f0402e33c5e4.54657374746f6b656e + TxOutDatumNone
+
+
+cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+f1f9bc983f8ea7a019a2905023175965d7e2e4bd47186cd0fb6e6ee75d0b5323     1        1267140 lovelace + 10000000 ae3fa1eb0b637d21f1bfb5aa41d22d93285c2060e0b9f0402e33c5e4.5365636f6e6454657374746f6b656e + 9999998 ae3fa1eb0b637d21f1bfb5aa41d22d93285c2060e0b9f0402e33c5e4.54657374746f6b656e + TxOutDatumNone
+f1f9bc983f8ea7a019a2905023175965d7e2e4bd47186cd0fb6e6ee75d0b5323     2        1012196513969 lovelace + TxOutDatumNone
+
+
+Burning token
+
+In the last part of our token lifecycle, we will burn 5000 of 
+our newly made tokens SecondTesttoken, thereby destroying them 
+permanently.
+
+
+cardano-cli conway transaction build \
+ --testnet-magic 42 \
+ --witness-override 2 \
+ --tx-in $(cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[0]') \
+ --tx-in $(cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[1]') \
+ --tx-out "$(cat payment.addr) + 1267140 + 9999998 $policyid.$tokenname1 + 9995000 $policyid.$tokenname2"  \
+ --change-address "$(cat payment.addr)" \
+ --mint="-5000 $policyid.$tokenname2" \
+ --minting-script-file policy/policy.script \
+ --out-file burning.raw
+
+
+ cardano-cli transaction sign  \
+--testnet-magic 42 \
+--signing-key-file payment.skey  \
+--signing-key-file policy/policy.skey  \
+--tx-body-file burning.raw \
+--out-file burning.signed
+
+cardano-cli transaction submit --tx-file burning.signed --testnet-magic 42  
+
+
+
+========================================================================
+
+Multi Sig scripts
+
+
+Step 1: Generate VRF Key Pair
+
+
+#!/bin/bash
+
+# Define the number of payment addresses to create
+num_addresses=4
+
+# Define the testnet magic number
+testnet_magic=4
+
+# Loop through and create the keys, addresses, and key hashes
+for i in $(seq 2 $num_addresses); do
+  # Generate payment keys
+  cardano-cli conway address key-gen \
+    --verification-key-file payment${i}.vkey \
+    --signing-key-file payment${i}.skey
+
+  # Generate stake keys
+  cardano-cli conway stake-address key-gen \
+    --verification-key-file stake${i}.vkey \
+    --signing-key-file stake${i}.skey
+
+  # Build payment address
+  cardano-cli conway address build \
+    --payment-verification-key-file payment${i}.vkey \
+    --stake-verification-key-file stake${i}.vkey \
+    --out-file payment${i}.addr \
+    --testnet-magic $testnet_magic
+
+  # Get the key hash
+  key_hash=$(cardano-cli address key-hash --payment-verification-key-file payment${i}.vkey)
+  echo "Key hash for payment${i}.vkey: $key_hash"
+done
+
+
+Key hash for payment2.vkey: 3699124c627c9c2c9f16ac5879198ee714d5a706582f11c97f90b08d
+Key hash for payment3.vkey: 0ec6567a4d2fe71f0cb25144578ac4490849e281bb0c6cac76b7415d
+Key hash for payment4.vkey: 174dcf7afed341643b7d768dbd623a51c2220247c2c57e1d518ab165
+
+
+Step 2 - create a script address
+
+A script address is required in order to use a script. 
+Construct this as follows:
+
+./cardano-cli conway address build \
+--payment-script-file allMultiSigScript.json \
+--testnet-magic 4 \
+--out-file script.addr
+
+
+cat script.addr 
+addr_test1wpk8k957h60qgarn32h20k6jvedh902mdyqtd7hfgylkwgsj2j9fe
+
+
+
+
+cardano-cli conway transaction build \
+--testnet-magic 4 \
+--witness-override 1 \
+--tx-in $(cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 4 --out-file  /dev/stdout | jq -r 'keys[0]') \
+--tx-out "$(< script.addr) 849070" \
+--change-address $(cat payment.addr) \
+--out-file tx_script.raw
+
+
+ cardano-cli transaction sign  \
+--testnet-magic 4 \
+--signing-key-file payment.skey  \
+--tx-body-file tx_script.raw  \
+--out-file tx_script.signed
+
+
+cardano-cli transaction submit --tx-file tx_script.signed --testnet-magic 4  
+
+
+
+cardano-cli query utxo --address $(cat script.addr) --testnet-magic 4
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+1997e67f73ca0bd387b85609a5f2cafe5a0b96cdb4e9d32be8fae5a23e170d75     0        1849070 lovelace + TxOutDatumNone
+80f0719ae79c1cdcebf0c2eae7b1f96e749209f52b575dc35dd6500c8c7b20b5     0        849070 lovelace + TxOutDatumNone
+
+
+Sending ada from a script address
+
+
+./cardano-cli conway transaction build \
+--testnet-magic 4 \
+--witness-override 3 \
+--tx-in $(cardano-cli query utxo --address $(cat script.addr) --testnet-magic 4 --out-file  /dev/stdout | jq -r 'keys[0]') \
+--tx-in $(cardano-cli query utxo --address $(cat script.addr) --testnet-magic 4 --out-file  /dev/stdout | jq -r 'keys[1]') \
+--tx-out $(cat payment.addr)+969750 \
+--change-address $(cat script.addr) \
+--tx-in-script-file allMultiSigScript.json \
+--out-file script_spend.raw
+
+
+./cardano-cli conway transaction sign  \
+--testnet-magic 4 \
+--signing-key-file payment2.skey  \
+--signing-key-file payment3.skey  \
+--signing-key-file payment4.skey  \
+--tx-body-file script_spend.raw  \
+--out-file tx_script.signed
+
+
+./cardano-cli conway transaction submit --tx-file tx_script.signed --testnet-magic 4  
+
+
+
+cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 4
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+1997e67f73ca0bd387b85609a5f2cafe5a0b96cdb4e9d32be8fae5a23e170d75     1        99996786537 lovelace + TxOutDatumNone
+65d4cc38b4aae73a4509be2232ab8777333e7d6812199a53c6aad7329a194261     0        969750 lovelace + TxOutDatumNone
+
+
+cardano-cli query utxo --address $(cat script.addr) --testnet-magic 4
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+65d4cc38b4aae73a4509be2232ab8777333e7d6812199a53c6aad7329a194261     1        1545861 lovelace + TxOutDatumNone
+
+
+./cardano-cli hash script --script-file allMultiSigScript.json 
+6c7b169ebe9e0474738aaea7db52665b72bd5b6900b6fae9413f6722
+
+
+sanchonet_13_3_0_0=# select * from script where hash='\x6c7b169ebe9e0474738aaea7db52665b72bd5b6900b6fae9413f6722';
+ id | tx_id |                            hash                            |   type   |                                                                                                                                                 json                                                                                                                                                 | bytes | serialised_size 
+----+-------+------------------------------------------------------------+----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------+-----------------
+ 30 |  4979 | \x6c7b169ebe9e0474738aaea7db52665b72bd5b6900b6fae9413f6722 | timelock | {"type": "all", "scripts": [{"type": "sig", "keyHash": "3699124c627c9c2c9f16ac5879198ee714d5a706582f11c97f90b08d"}, {"type": "sig", "keyHash": "0ec6567a4d2fe71f0cb25144578ac4490849e281bb0c6cac76b7415d"}, {"type": "sig", "keyHash": "174dcf7afed341643b7d768dbd623a51c2220247c2c57e1d518ab165"}]} |       |                
+(1 row)
+
+
+
+========================================================================
+
+Treasury Donations - Build raw
+
+cardano-cli conway transaction build-raw \
+  --tx-in $(cardano-cli query utxo --address $(cat addr_basic_ci0_0.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[0]') \
+  --current-treasury-value 456789 \
+  --treasury-donation 2000000 \
+  --tx-out $(cat addr_basic_ci0_0.addr)+0 \
+  --invalid-hereafter 0 \
+  --fee 0 \
+  --out-file tx.draft
+
+
+cardano-cli conway transaction calculate-min-fee \
+  --tx-body-file tx.draft \
+  --tx-in-count 1 \
+  --tx-out-count 2 \
+  --witness-count 1 \
+  --byron-witness-count 0 \
+  --testnet-magic 42 \
+  --protocol-params-file protocol.json
+164445 Lovelace
+
+
+cardano-cli conway query utxo --address addr_test1vqtaa5s2clxk8yt8c8rwza55sqhj6l4sszlr3y8wgtyhqscncjl7p --testnet-magic 42
+                           TxHash                                 TxIx        Amount
+--------------------------------------------------------------------------------------
+c2f8678eea79f245de0b65c1ce6d748d6f340860fee6abc0d149b761c66f9a0c     0        1000000000 lovelace + TxOutDatumNone
+
+
+expr <UTXO BALANCE> - <AMOUNT TO SEND> - <TRANSACTION FEE>
+
+expr 1000000000 - 2000000 - 164973
+997835027
+
+
+cardano-cli conway query tip --testnet-magic 42
+{
+    "block": 2044,
+    "epoch": 20,
+    "era": "Conway",
+    "hash": "2db2ac97624a3c1d6818fa074c08ae1b98bf55ef480b3c33efd70c7796d6a35f",
+    "slot": 20945,
+    "slotInEpoch": 945,
+    "slotsToEpochEnd": 55,
+    "syncProgress": "100.00"
+}
+
+
+cardano-cli conway transaction build-raw \
+  --tx-in $(cardano-cli query utxo --address $(cat addr_basic_ci0_0.addr) --testnet-magic 42 --out-file  /dev/stdout | jq -r 'keys[0]') \
+  --current-treasury-value $(cardano-cli query ledger-state --testnet-magic 42 | jq '.stateBefore.esAccountState.treasury') \
+  --treasury-donation 2000000 \
+  --tx-out $(cat addr_basic_ci0_0.addr)+997835027 \
+  --invalid-hereafter 550945 \
+  --fee 164973 \
+  --out-file tx.raw
+
+
+
+  cardano-cli transaction sign \
+  --tx-body-file tx.raw \
+  --signing-key-file addr_basic_ci0_0.skey \
+  --testnet-magic 42 \
+  --out-file tx.signed
+
+
+  cardano-cli transaction submit \
+  --tx-file tx.signed \
+  --testnet-magic 42 
+
+
+========================================================================
+
+
+
+# Test Framework markers
+
+@pytest.mark.parametrize("submit_method", [pytest.param("cli")], ids=["submit_cli"])
+@pytest.mark.parametrize("submit_method", [pytest.param("api")], ids=["submit_api"])
+@pytest.mark.parametrize("use_build_cmd", [pytest.param(True)], ids=["build"])
+@pytest.mark.parametrize("use_build_cmd", [pytest.param(True)], ids=["build_raw"])
